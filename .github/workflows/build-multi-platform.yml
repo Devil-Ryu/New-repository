@@ -16,19 +16,19 @@ jobs:
           - name: Windows AMD64
             os: windows-latest
             arch: amd64
-            target: windows_amd64
+            target: windows:package
           - name: Windows ARM64
             os: windows-latest
             arch: arm64
-            target: windows_arm64
+            target: windows:package
           - name: macOS Intel
             os: macos-latest
             arch: amd64
-            target: darwin_amd64
+            target: darwin:package
           - name: macOS Apple Silicon
             os: macos-latest
             arch: arm64
-            target: darwin_arm64
+            target: darwin:package
 
     runs-on: ${{ matrix.os }}
     name: 构建 ${{ matrix.name }} 可执行文件
@@ -101,8 +101,8 @@ jobs:
         run: |
           # 使用Wails3构建多平台可执行文件
           # 根据矩阵配置构建不同平台的目标文件
-          wails3 task build 
-          # wails3 task build -platform ${{ matrix.target }}
+          # wails3 task build 
+          wails3 task ${{ matrix.target }}
         timeout-minutes: 25
 
       # 第十步：上传构建产物
