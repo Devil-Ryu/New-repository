@@ -109,7 +109,7 @@ jobs:
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
-          name: exam-assistant-${{ matrix.target }}  # 产物名称，包含平台信息
+          name: exam-assistant-${{ matrix.os }}-${{ matrix.arch }}  # 产物名称，包含平台信息
           path: bin/exam_assistant*  # 上传所有匹配的可执行文件
           retention-days: 30  # 保留30天
 
