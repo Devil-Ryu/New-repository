@@ -70,9 +70,9 @@ jobs:
         timeout-minutes: 20
 
       # 第八步：安装Wails CLI工具
-      - name: 安装 Wails CLI
+      - name: 安装 Wails3 CLI
         run: |
-          # 安装最新版本的Wails CLI
+          # 安装最新版本的Wails3 CLI
           go install -v github.com/wailsapp/wails/v3/cmd/wails3@latest
         timeout-minutes: 15
 
@@ -83,7 +83,7 @@ jobs:
           # -platform: 指定目标平台为windows_amd64
           # -clean: 清理之前的构建文件
           # -webview2 embed: 嵌入WebView2运行时
-          wails3 build -platform windows_amd64 -clean -webview2 embed
+          wails3 task build 
         timeout-minutes: 25
 
       # 第十步：上传构建产物
