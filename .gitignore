@@ -18,7 +18,6 @@
 go.work
 
 # Wails build output
-build/
 bin/
 
 # Frontend build output
