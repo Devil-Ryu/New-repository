@@ -16,6 +16,8 @@ tasks:
     summary: Builds the application
     cmds:
       - task: "{{OS}}:build"
+        vars: 
+          PRODUCTION: "true"
 
   package:
     summary: Packages a production build of the application
