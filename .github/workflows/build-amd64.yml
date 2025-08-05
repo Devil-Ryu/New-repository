@@ -66,7 +66,7 @@ jobs:
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 10000
           npm config set fetch-retry-maxtimeout 120000
-          npm config set timeout 300000
+          # npm config set timeout 300000
           npm config set maxsockets 50
           npm config set progress false
 
