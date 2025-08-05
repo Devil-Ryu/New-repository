@@ -86,9 +86,9 @@ jobs:
       # 第六步半：安装NSIS（仅Windows平台）
       - name: 安装NSIS
         if: matrix.os == 'windows-latest'
-        run: |
-          # 使用wingety安装NSIS
-          winget install NSIS.NSIS --silent
+        uses: repolevedavaj/install-nsis@v1.0.1
+        with:
+          nsis-version: '3.10'
         timeout-minutes: 10
 
       # 第七步：构建前端代码
