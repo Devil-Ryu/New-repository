@@ -16,11 +16,11 @@ jobs:
           - name: Windows AMD64
             os: windows-latest
             arch: amd64
-            target: windows:create:nsis:installer
+            target: windows:package
           - name: Windows ARM64
             os: windows-latest
             arch: arm64
-            target: windows:create:nsis:installer
+            target: windows:package
           - name: macOS Intel
             os: macos-latest
             arch: amd64
