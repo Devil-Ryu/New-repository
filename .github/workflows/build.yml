@@ -38,6 +38,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     name: Build for ${{ matrix.name }}
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -55,21 +56,34 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Clear npm cache
+        working-directory: ./frontend
+        run: npm cache clean --force
+
       - name: Install frontend dependencies
         working-directory: ./frontend
-        run: npm ci
+        run: |
+          npm config set registry https://registry.npmjs.org/
+          npm config set fetch-retries 3
+          npm config set fetch-retry-mintimeout 5000
+          npm config set fetch-retry-maxtimeout 60000
+          npm ci --no-audit --no-fund --prefer-offline --verbose
+        timeout-minutes: 20
 
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
+        timeout-minutes: 15
 
       - name: Install Wails CLI
         run: |
           go install github.com/wailsapp/wails/v3/cmd/wails@latest
+        timeout-minutes: 10
 
       - name: Build application
         run: |
           wails build -platform ${{ matrix.target }} -clean -webview2 embed
+        timeout-minutes: 20
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
