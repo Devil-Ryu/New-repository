@@ -30,6 +30,7 @@ const selectedAreaImage = ref('')
 const ocrResult = ref('')
 const answers = ref([])
 const searchResults = ref([])
+const hasSearched = ref(false) // 是否已经进行过搜索
 const selectedTypeFilters = ref([]) // 选中的题目类型筛选（多选）
 const selectedSearchTypeFilters = ref([]) // 搜索结果中选中的题目类型筛选（多选）
 
@@ -73,6 +74,13 @@ const handleFilterChange = (value) => {
 // 处理搜索结果筛选器变化
 const handleSearchFilterChange = (value) => {
   selectedSearchTypeFilters.value = value
+}
+
+// 重置搜索状态
+const resetSearchState = () => {
+  searchResults.value = []
+  hasSearched.value = false
+  selectedSearchTypeFilters.value = []
 }
 
 // 错误弹窗相关
@@ -240,8 +248,8 @@ const importAnswers = async () => {
         answers.value = newAnswers
         console.log('导入成功，共导入', newAnswers.length, '条答案')
         
-        // 清空搜索结果
-        searchResults.value = []
+        // 重置搜索状态
+        resetSearchState()
         
         // 显示成功提示
         alert(`成功导入 ${newAnswers.length} 条答案数据！`)
@@ -524,10 +532,12 @@ const searchAnswers = async () => {
     if (!ocrResult.value.trim()) {
       console.log('搜索内容为空，显示所有答案')
       searchResults.value = []
+      hasSearched.value = false
       return
     }
     
     console.log('开始搜索:', ocrResult.value)
+    hasSearched.value = true
     
     // 调用后端搜索方法
     const results = await ExamService.SearchAnswers(answers.value, ocrResult.value)
@@ -539,7 +549,8 @@ const searchAnswers = async () => {
     console.log('搜索完成，找到', results.length, '条结果')
     
     if (results.length === 0) {
-      alert('未找到匹配的答案')
+      // 不再显示alert，让界面显示空状态
+      console.log('未找到匹配的答案')
     } else {
       // 显示匹配结果统计
       const highMatch = results.filter(r => r.score >= 0.8).length
@@ -752,6 +763,8 @@ const getSelectedAreaImage = () => {
 onMounted(() => {
   // 答案页面默认为空，用户需要导入数据
   answers.value = []
+  // 重置搜索状态
+  resetSearchState()
 })
 </script>
 
@@ -888,7 +901,7 @@ onMounted(() => {
           <h2>答案列表</h2>
           
           <!-- 搜索结果 -->
-          <div v-if="searchResults.length > 0" class="search-results">
+          <div v-if="hasSearched && searchResults.length > 0" class="search-results">
             <div class="search-results-header">
               <h3>搜索结果 ({{ filteredSearchResults.length }}/{{ searchResults.length }}条)</h3>
               <div class="filter-controls" v-if="searchResults.length > 0">
@@ -952,6 +965,20 @@ onMounted(() => {
                   </div>
                 </div>
               </t-card>
+            </div>
+          </div>
+
+          <!-- 搜索结果为空状态 -->
+          <div v-else-if="hasSearched && searchResults.length === 0" class="empty-state">
+            <div class="empty-content">
+              <div class="empty-icon">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                  <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <h3>未找到匹配的答案</h3>
+              <p>请尝试调整OCR识别文本或检查答案库是否包含相关内容</p>
             </div>
           </div>
 
@@ -1023,11 +1050,17 @@ onMounted(() => {
           
           <!-- 空状态 -->
           <div v-if="answers.length === 0" class="empty-state">
-            <t-empty >
-              <template #description>
-                <p>请点击左侧的"导入答案"按钮来加载答案数据</p>
-              </template>
-            </t-empty>
+            <div class="empty-content">
+              <div class="empty-icon">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <h3>暂无答案数据</h3>
+              <p>请点击左侧的"导入答案"按钮来加载答案数据</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1839,6 +1872,43 @@ onMounted(() => {
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 300px;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+  color: #999;
+}
+
+.empty-icon svg {
+  width: 64px;
+  height: 64px;
+  color: #999;
+  opacity: 0.6;
+}
+
+.empty-content h3 {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.empty-content p {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
 }
 
 .resizer {
