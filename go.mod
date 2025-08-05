@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
-	github.com/wailsapp/wails/v3 v3.0.0-dev
+	github.com/wailsapp/wails/v3 v3.0.0-alpha.19
 	golang.org/x/text v0.25.0
 )
 
@@ -52,5 +52,3 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
-
-replace github.com/wailsapp/wails/v3 => ../../github/wails/v3
