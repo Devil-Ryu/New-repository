@@ -35,6 +35,16 @@ jobs:
     timeout-minutes: 60  # 设置超时时间为60分钟
 
     steps:
+      # 第零步：查看当前系统架构
+      - name: 查看系统架构
+        shell: bash
+        run: |
+          echo "=== 当前系统架构信息 ==="
+          echo "操作系统: $RUNNER_OS"
+          echo "架构: $RUNNER_ARCH"
+          echo "机器架构: $(uname -m)"
+          echo "完整系统信息: $(uname -a)"
+
       # 第一步：检出代码仓库
       - name: 检出代码
         uses: actions/checkout@v4
