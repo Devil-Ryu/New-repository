@@ -120,11 +120,11 @@ const handleAreaSelected = (area) => {
 // 开始区域选择
 const startAreaSelection = async () => {
   try {
-    // 使用Wails绑定文件
-    const { ExamService } = await import('../bindings/changeme/index.js')
+    // 使用HTTP服务截图
+    const { takeScreenshot } = await import('./services/httpService.js')
     
     // 使用带窗口控制的截图方法
-    const screenshot = await ExamService.TakeScreenshotWithWindowControl()
+    const screenshot = await takeScreenshot()
     fullScreenshot.value = screenshot
     
     // 等待一小段时间确保窗口完全显示

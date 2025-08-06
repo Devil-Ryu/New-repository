@@ -23,58 +23,37 @@
 
 <script setup>
 import { ref } from 'vue'
-import { searchAnswers as httpSearchAnswers } from '../services/httpService.js'
+import { takeScreenshot, performOCR } from '../services/httpService.js'
+
+const props = defineProps({
+  screenshotArea: {
+    type: Object,
+    required: true
+  },
+  ocrConfig: {
+    type: Object,
+    required: true
+  }
+})
+
+const emit = defineEmits(['update-screenshot', 'next-question-error'])
 
 const ocrResult = ref('')
 
-// 搜索答案
-const searchAnswers = async () => {
-  console.log('搜索按钮被点击')
-  console.log('OCR结果:', ocrResult.value)
-  
-  try {
-    // 如果搜索内容为空，返回所有结果
-    if (!ocrResult.value.trim()) {
-      console.log('搜索内容为空，返回所有结果')
-      emit('search-results', [])
-      return
-    }
-    
-    console.log('开始搜索:', ocrResult.value)
-    
-    // 调用HTTP搜索接口
-    const results = await httpSearchAnswers(ocrResult.value, {})
-    console.log('HTTP接口返回结果:', results)
-    
-    // 显示所有匹配结果，按匹配度排序
-    const sortedResults = results.sort((a, b) => b.score - a.score)
-    
-    console.log('搜索完成，找到', results.length, '条结果')
-    
-    // 触发搜索结果事件
-    emit('search-results', sortedResults)
-    
-  } catch (error) {
-    console.error('搜索失败:', error)
-    emit('search-error', error)
-  }
-}
-
-// 下一题
+// 下一题功能
 const nextQuestion = async () => {
   try {
-    console.log('开始下一题')
+    console.log('开始下一题功能')
     
-    // 检查是否已选择截图区域
-    if (!props.screenshotArea || !props.screenshotArea.image) {
+    // 检查是否有截图区域
+    if (!props.screenshotArea || !props.screenshotArea.width || !props.screenshotArea.height) {
       alert('请先选择截图区域')
       return
     }
     
     // 1. 重新截取整个屏幕
     console.log('重新截取屏幕')
-    const { ExamService } = await import('../../bindings/changeme/index.js')
-    const newScreenshot = await ExamService.TakeScreenshotWithWindowControl()
+    const newScreenshot = await takeScreenshot()
     
     // 2. 从新截图中提取选择区域
     console.log('从新截图中提取选择区域')
@@ -101,19 +80,16 @@ const nextQuestion = async () => {
   }
 }
 
-// 通过后端执行OCR识别
+// 通过HTTP服务执行OCR识别
 const performOCRWithBackend = async (screenshotData, area) => {
   try {
-    console.log('开始通过后端执行OCR识别')
+    console.log('开始通过HTTP服务执行OCR识别')
     console.log('使用OCR配置:', props.ocrConfig)
     
     // 检查OCR配置
     if (!props.ocrConfig || !props.ocrConfig.url) {
       throw new Error('OCR服务未配置，请先在OCR配置中设置服务URL')
     }
-    
-    // 调用后端OCR识别功能
-    const { ExamService } = await import('../../bindings/changeme/index.js')
     
     // 创建截图区域对象
     const screenshotArea = {
@@ -124,8 +100,8 @@ const performOCRWithBackend = async (screenshotData, area) => {
       image: screenshotData
     }
     
-    // 调用后端OCR识别，传入OCR配置
-    const result = await ExamService.PerformOCR(screenshotArea, props.ocrConfig)
+    // 调用HTTP服务OCR识别，传入OCR配置
+    const result = await performOCR(screenshotArea, props.ocrConfig)
     
     if (result && result.trim()) {
       console.log('OCR识别成功:', result)
@@ -170,49 +146,46 @@ const cropImageForDisplay = (imageSrc, area) => {
           displayWidth = maxDisplayHeight * originalRatio
         }
         
+        // 设置canvas尺寸
         canvas.width = displayWidth
         canvas.height = displayHeight
         
-        // 绘制裁剪的区域并缩放到显示尺寸
+        // 绘制裁剪后的图片
         ctx.drawImage(
           img,
           area.x, area.y, area.width, area.height,  // 源图片裁剪区域
-          0, 0, displayWidth, displayHeight          // 目标canvas区域（保持宽高比）
+          0, 0, displayWidth, displayHeight          // 目标canvas区域
         )
         
         // 转换为base64
-        const croppedImageSrc = canvas.toDataURL('image/png')
-        resolve(croppedImageSrc)
+        const croppedImage = canvas.toDataURL('image/png')
+        resolve(croppedImage)
       } catch (error) {
         reject(error)
       }
     }
-    img.onerror = () => reject(new Error('图片加载失败'))
+    
+    img.onerror = () => {
+      reject(new Error('图片加载失败'))
+    }
+    
     img.src = imageSrc
   })
 }
 
-// 定义事件
-const emit = defineEmits(['search-results', 'search-error', 'update-screenshot', 'next-question-error'])
-
-// 定义props
-const props = defineProps({
-  screenshotArea: {
-    type: Object,
-    default: () => ({})
-  },
-  answers: {
-    type: Array,
-    default: () => []
-  },
-  ocrConfig: {
-    type: Object,
-    default: () => ({})
+// 搜索答案功能
+const searchAnswers = async () => {
+  try {
+    console.log('开始搜索答案')
+    // 这里可以添加搜索逻辑
+    console.log('搜索完成')
+  } catch (error) {
+    console.error('搜索失败:', error)
   }
-})
+}
 
-// 暴露配置给父组件
 defineExpose({
+  nextQuestion,
   ocrResult
 })
 </script>

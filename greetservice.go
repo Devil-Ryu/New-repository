@@ -1263,6 +1263,90 @@ type SearchResponse struct {
 	Results []SearchResult `json:"results,omitempty"`
 }
 
+// ParseCSVRequest HTTP CSV解析请求结构
+type ParseCSVRequest struct {
+	FilePath        string `json:"filePath"`
+	Encoding        string `json:"encoding"`
+	OptionSeparator string `json:"optionSeparator"`
+	AnswerSeparator string `json:"answerSeparator"`
+}
+
+// ParseCSVResponse HTTP CSV解析响应结构
+type ParseCSVResponse struct {
+	Success bool         `json:"success"`
+	Message string       `json:"message,omitempty"`
+	Results []AnswerItem `json:"results,omitempty"`
+}
+
+// SetGlobalAnswersRequest HTTP设置全局答案请求结构
+type SetGlobalAnswersRequest struct {
+	Answers []AnswerItem `json:"answers"`
+}
+
+// SetGlobalAnswersResponse HTTP设置全局答案响应结构
+type SetGlobalAnswersResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+}
+
+// GetGlobalAnswersResponse HTTP获取全局答案响应结构
+type GetGlobalAnswersResponse struct {
+	Success bool         `json:"success"`
+	Message string       `json:"message,omitempty"`
+	Answers []AnswerItem `json:"answers,omitempty"`
+}
+
+// handleParseCSV 处理HTTP CSV解析请求
+func handleParseCSV(w http.ResponseWriter, r *http.Request) {
+	// 设置CORS头
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// 处理预检请求
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 只允许POST方法
+	if r.Method != "POST" {
+		http.Error(w, "只支持POST方法", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 解析请求体
+	var req ParseCSVRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "请求体解析失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 创建ExamService实例
+	examService := &ExamService{}
+
+	// 调用ParseCSVFile方法
+	results, err := examService.ParseCSVFile(req.FilePath, req.Encoding, req.OptionSeparator, req.AnswerSeparator)
+	if err != nil {
+		response := ParseCSVResponse{
+			Success: false,
+			Message: "CSV解析失败: " + err.Error(),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// 返回解析结果
+	response := ParseCSVResponse{
+		Success: true,
+		Results: results,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 // handleSearch 处理HTTP搜索请求
 func handleSearch(w http.ResponseWriter, r *http.Request) {
 	// 设置CORS头
@@ -1308,6 +1392,261 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	response := SearchResponse{
 		Success: true,
 		Results: results,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleSetGlobalAnswers 处理HTTP设置全局答案请求
+func handleSetGlobalAnswers(w http.ResponseWriter, r *http.Request) {
+	// 设置CORS头
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// 处理预检请求
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 只允许POST方法
+	if r.Method != "POST" {
+		http.Error(w, "只支持POST方法", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 解析请求体
+	var req SetGlobalAnswersRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "请求体解析失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 创建ExamService实例
+	examService := &ExamService{}
+
+	// 调用SetGlobalAnswers方法
+	examService.SetGlobalAnswers(req.Answers)
+
+	// 返回设置结果
+	response := SetGlobalAnswersResponse{
+		Success: true,
+		Message: fmt.Sprintf("成功设置 %d 条答案", len(req.Answers)),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleGetGlobalAnswers 处理HTTP获取全局答案请求
+func handleGetGlobalAnswers(w http.ResponseWriter, r *http.Request) {
+	// 设置CORS头
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// 处理预检请求
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 只允许GET方法
+	if r.Method != "GET" {
+		http.Error(w, "只支持GET方法", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 创建ExamService实例
+	examService := &ExamService{}
+
+	// 调用GetGlobalAnswers方法
+	answers := examService.GetGlobalAnswers()
+
+	// 返回获取结果
+	response := GetGlobalAnswersResponse{
+		Success: true,
+		Answers: answers,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// TestOCRRequest HTTP OCR测试请求结构
+type TestOCRRequest struct {
+	Config OCRConfig `json:"config"`
+}
+
+// TestOCRResponse HTTP OCR测试响应结构
+type TestOCRResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+	Result  string `json:"result,omitempty"`
+}
+
+// ScreenshotResponse HTTP截图响应结构
+type ScreenshotResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+	Image   string `json:"image,omitempty"`
+}
+
+// PerformOCRRequest HTTP执行OCR请求结构
+type PerformOCRRequest struct {
+	Area   ScreenshotArea `json:"area"`
+	Config OCRConfig      `json:"config"`
+}
+
+// PerformOCRResponse HTTP执行OCR响应结构
+type PerformOCRResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+	Result  string `json:"result,omitempty"`
+}
+
+// handleTestOCR 处理HTTP OCR测试请求
+func handleTestOCR(w http.ResponseWriter, r *http.Request) {
+	// 设置CORS头
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// 处理预检请求
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 只允许POST方法
+	if r.Method != "POST" {
+		http.Error(w, "只支持POST方法", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 解析请求体
+	var req TestOCRRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "请求体解析失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 创建ExamService实例
+	examService := &ExamService{}
+
+	// 调用TestOCRConnection方法
+	result, err := examService.TestOCRConnection(req.Config)
+	if err != nil {
+		response := TestOCRResponse{
+			Success: false,
+			Message: "OCR测试失败: " + err.Error(),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// 返回测试结果
+	response := TestOCRResponse{
+		Success: true,
+		Result:  result,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleTakeScreenshot 处理HTTP截图请求
+func handleTakeScreenshot(w http.ResponseWriter, r *http.Request) {
+	// 设置CORS头
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// 处理预检请求
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 只允许POST方法
+	if r.Method != "POST" {
+		http.Error(w, "只支持POST方法", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 创建ExamService实例
+	examService := &ExamService{}
+
+	// 调用TakeScreenshotWithWindowControl方法
+	image, err := examService.TakeScreenshotWithWindowControl()
+	if err != nil {
+		response := ScreenshotResponse{
+			Success: false,
+			Message: "截图失败: " + err.Error(),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// 返回截图结果
+	response := ScreenshotResponse{
+		Success: true,
+		Image:   image,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handlePerformOCR 处理HTTP执行OCR请求
+func handlePerformOCR(w http.ResponseWriter, r *http.Request) {
+	// 设置CORS头
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// 处理预检请求
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 只允许POST方法
+	if r.Method != "POST" {
+		http.Error(w, "只支持POST方法", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 解析请求体
+	var req PerformOCRRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "请求体解析失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 创建ExamService实例
+	examService := &ExamService{}
+
+	// 调用PerformOCR方法
+	result, err := examService.PerformOCR(req.Area, req.Config)
+	if err != nil {
+		response := PerformOCRResponse{
+			Success: false,
+			Message: "OCR执行失败: " + err.Error(),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// 返回OCR结果
+	response := PerformOCRResponse{
+		Success: true,
+		Result:  result,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

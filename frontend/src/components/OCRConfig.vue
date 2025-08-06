@@ -29,6 +29,7 @@
 
 <script setup>
 import { reactive } from 'vue'
+import { testOCRConnection } from '../services/httpService.js'
 
 const ocrConfig = reactive({
   mode: 'local',
@@ -49,9 +50,8 @@ const testConnection = async () => {
       throw new Error('OCR服务URL不能为空，请先设置服务地址')
     }
     
-    // 通过后端代理测试OCR连接
-    const { ExamService } = await import('../../bindings/changeme/index.js')
-    const result = await ExamService.TestOCRConnection(ocrConfig)
+    // 使用HTTP服务测试OCR连接
+    const result = await testOCRConnection(ocrConfig)
     
     if (result === '连接成功') {
       ocrConfig.status = '连接成功'

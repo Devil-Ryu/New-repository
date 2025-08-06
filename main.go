@@ -82,8 +82,26 @@ func startHTTPServer() {
 	// 注册搜索接口
 	mux.HandleFunc("/api/search", handleSearch)
 
+	// 注册CSV解析接口
+	mux.HandleFunc("/api/parse-csv", handleParseCSV)
+
+	// 注册设置全局答案接口
+	mux.HandleFunc("/api/set-global-answers", handleSetGlobalAnswers)
+
+	// 注册获取全局答案接口
+	mux.HandleFunc("/api/get-global-answers", handleGetGlobalAnswers)
+
+	// 注册OCR测试接口
+	mux.HandleFunc("/api/test-ocr", handleTestOCR)
+
+	// 注册截图接口
+	mux.HandleFunc("/api/take-screenshot", handleTakeScreenshot)
+
+	// 注册执行OCR接口
+	mux.HandleFunc("/api/perform-ocr", handlePerformOCR)
+
 	// 启动服务器
-	port := ":8080"
+	port := ":8088"
 	log.Printf("HTTP服务器启动在端口 %s", port)
 
 	// 优雅关闭

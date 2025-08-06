@@ -44,6 +44,7 @@
 
 <script setup>
 import { reactive } from 'vue'
+import { parseCSVFile, setGlobalAnswers } from '../services/httpService.js'
 
 const importConfig = reactive({
   fileType: 'csv',
@@ -57,7 +58,7 @@ const importAnswers = async () => {
   console.log('导入答案按钮被点击')
   
   try {
-    // 使用Wails绑定文件
+    // 使用Wails绑定文件对话框
     const { ExamService } = await import('../../bindings/changeme/index.js')
     
     // 根据文件类型设置对话框标题和文件类型
@@ -76,7 +77,8 @@ const importAnswers = async () => {
         let newAnswers
         
         if (importConfig.fileType === 'csv') {
-          newAnswers = await ExamService.ParseCSVFile(result.filePath, importConfig.encoding, importConfig.optionDelimiter, importConfig.answerDelimiter)
+          // 使用HTTP服务解析CSV文件
+          newAnswers = await parseCSVFile(result.filePath, importConfig.encoding, importConfig.optionDelimiter, importConfig.answerDelimiter)
         } else {
           // TODO: 添加Excel文件导入支持
           throw new Error('Excel文件导入功能暂未实现')
@@ -87,8 +89,8 @@ const importAnswers = async () => {
           throw new Error('文件中没有找到有效的答案数据')
         }
         
-        // 设置全局答案数据到后端
-        await ExamService.SetGlobalAnswers(newAnswers)
+        // 使用HTTP服务设置全局答案数据到后端
+        await setGlobalAnswers(newAnswers)
         
         // 触发导入成功事件
         emit('import-success', newAnswers)
