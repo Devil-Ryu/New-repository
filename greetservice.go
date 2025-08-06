@@ -806,7 +806,7 @@ func (e *ExamService) SearchAnswers(answers []AnswerItem, query string, filters 
 		questionMatches := e.calculateMatchesForOriginalText(question, normalizedQuery)
 		if questionScore > maxScore {
 			maxScore = questionScore
-			matched = normalizedQuery
+			matched = "[题目匹配]" + normalizedQuery
 			bestMatches = questionMatches
 		}
 
@@ -818,7 +818,7 @@ func (e *ExamService) SearchAnswers(answers []AnswerItem, query string, filters 
 			ansMatches := e.calculateMatchesForOriginalText(ans, normalizedQuery)
 			if ansScore > maxScore {
 				maxScore = ansScore
-				matched = normalizedQuery
+				matched = "[答案匹配]" + normalizedQuery
 				bestMatches = ansMatches
 			}
 		}
@@ -832,7 +832,7 @@ func (e *ExamService) SearchAnswers(answers []AnswerItem, query string, filters 
 			optionScore = optionScore * 0.8 // 选项权重稍低
 			if optionScore > maxScore {
 				maxScore = optionScore
-				matched = normalizedQuery
+				matched = "选项匹配: " + normalizedQuery
 				bestMatches = optionMatches
 			}
 		}

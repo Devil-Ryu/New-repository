@@ -23,7 +23,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { takeScreenshot, performOCR } from '../services/httpService.js'
+import { takeScreenshot, performOCR, searchAnswers as httpSearchAnswers } from '../services/httpService.js'
 
 const props = defineProps({
   screenshotArea: {
@@ -36,7 +36,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update-screenshot', 'next-question-error'])
+const emit = defineEmits(['update-screenshot', 'next-question-error', 'search-results', 'search-error'])
 
 const ocrResult = ref('')
 
@@ -77,6 +77,39 @@ const nextQuestion = async () => {
   } catch (error) {
     console.error('下一题失败:', error)
     emit('next-question-error', error)
+  }
+}
+
+// 搜索答案功能
+const searchAnswers = async () => {
+  try {
+    console.log('搜索按钮被点击')
+    console.log('OCR结果:', ocrResult.value)
+    
+    // 如果搜索内容为空，返回所有结果
+    if (!ocrResult.value.trim()) {
+      console.log('搜索内容为空，返回所有结果')
+      emit('search-results', [])
+      return
+    }
+    
+    console.log('开始搜索:', ocrResult.value)
+    
+    // 调用HTTP搜索接口
+    const results = await httpSearchAnswers(ocrResult.value, {})
+    console.log('HTTP接口返回结果:', results)
+    
+    // 显示所有匹配结果，按匹配度排序
+    const sortedResults = results.sort((a, b) => b.score - a.score)
+    
+    console.log('搜索完成，找到', results.length, '条结果')
+    
+    // 触发搜索结果事件
+    emit('search-results', sortedResults)
+    
+  } catch (error) {
+    console.error('搜索失败:', error)
+    emit('search-error', error)
   }
 }
 
@@ -173,19 +206,9 @@ const cropImageForDisplay = (imageSrc, area) => {
   })
 }
 
-// 搜索答案功能
-const searchAnswers = async () => {
-  try {
-    console.log('开始搜索答案')
-    // 这里可以添加搜索逻辑
-    console.log('搜索完成')
-  } catch (error) {
-    console.error('搜索失败:', error)
-  }
-}
-
 defineExpose({
   nextQuestion,
+  searchAnswers,
   ocrResult
 })
 </script>

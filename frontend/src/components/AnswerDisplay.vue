@@ -76,7 +76,7 @@
                     <span v-html="highlightText(ans, result.matches)"></span>
                   </div>
                 </div>
-                <p><strong>匹配文本:</strong> {{ result.matched }}</p>
+                <p><strong>匹配到文本:</strong> {{  result.matched || '未匹配到文本' }}</p>
               </div>
               <div class="match-score-container" :style="getMatchScoreColor(result.score)">
                 <div class="match-score-content">
@@ -306,6 +306,11 @@ const updateAnswers = (newAnswers) => {
 
 // 更新搜索结果
 const updateSearchResults = (results) => {
+  console.log('更新搜索结果:', results)
+  if (results && results.length > 0) {
+    console.log('第一个搜索结果:', results[0])
+    console.log('第一个结果的matched字段:', results[0].matched)
+  }
   searchResults.value = results
   hasSearched.value = true
 }
