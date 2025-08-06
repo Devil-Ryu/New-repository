@@ -87,6 +87,9 @@ const importAnswers = async () => {
           throw new Error('文件中没有找到有效的答案数据')
         }
         
+        // 设置全局答案数据到后端
+        await ExamService.SetGlobalAnswers(newAnswers)
+        
         // 触发导入成功事件
         emit('import-success', newAnswers)
         console.log('导入成功，共导入', newAnswers.length, '条答案')

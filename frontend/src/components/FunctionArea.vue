@@ -23,6 +23,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { searchAnswers as httpSearchAnswers } from '../services/httpService.js'
 
 const ocrResult = ref('')
 
@@ -30,7 +31,6 @@ const ocrResult = ref('')
 const searchAnswers = async () => {
   console.log('搜索按钮被点击')
   console.log('OCR结果:', ocrResult.value)
-  console.log('当前答案数据:', props.answers)
   
   try {
     // 如果搜索内容为空，返回所有结果
@@ -40,20 +40,11 @@ const searchAnswers = async () => {
       return
     }
     
-    // 检查是否有答案数据
-    if (!props.answers || props.answers.length === 0) {
-      console.log('没有答案数据，请先导入答案文件')
-      alert('请先导入答案文件')
-      return
-    }
-    
     console.log('开始搜索:', ocrResult.value)
-    console.log('使用答案数据:', props.answers.length, '条')
     
-    // 调用后端搜索方法，传入答案数据
-    const { ExamService } = await import('../../bindings/changeme/index.js')
-    const results = await ExamService.SearchAnswers(props.answers, ocrResult.value, {})
-    console.log('后端返回结果:', results)
+    // 调用HTTP搜索接口
+    const results = await httpSearchAnswers(ocrResult.value, {})
+    console.log('HTTP接口返回结果:', results)
     
     // 显示所有匹配结果，按匹配度排序
     const sortedResults = results.sort((a, b) => b.score - a.score)
@@ -115,6 +106,11 @@ const performOCRWithBackend = async (screenshotData, area) => {
   try {
     console.log('开始通过后端执行OCR识别')
     console.log('使用OCR配置:', props.ocrConfig)
+    
+    // 检查OCR配置
+    if (!props.ocrConfig || !props.ocrConfig.url) {
+      throw new Error('OCR服务未配置，请先在OCR配置中设置服务URL')
+    }
     
     // 调用后端OCR识别功能
     const { ExamService } = await import('../../bindings/changeme/index.js')

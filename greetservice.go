@@ -1225,3 +1225,80 @@ func (e *ExamService) ShowWindow() error {
 	windows[0].Restore()
 	return nil
 }
+
+// 全局变量存储答案数据
+var globalAnswers []AnswerItem
+
+// SetGlobalAnswers 设置全局答案数据
+func (e *ExamService) SetGlobalAnswers(answers []AnswerItem) {
+	globalAnswers = answers
+}
+
+// GetGlobalAnswers 获取全局答案数据
+func (e *ExamService) GetGlobalAnswers() []AnswerItem {
+	return globalAnswers
+}
+
+// SearchRequest HTTP搜索请求结构
+type SearchRequest struct {
+	Query   string          `json:"query"`
+	Filters AccuracyFilters `json:"filters"`
+}
+
+// SearchResponse HTTP搜索响应结构
+type SearchResponse struct {
+	Success bool           `json:"success"`
+	Message string         `json:"message,omitempty"`
+	Results []SearchResult `json:"results,omitempty"`
+}
+
+// handleSearch 处理HTTP搜索请求
+func handleSearch(w http.ResponseWriter, r *http.Request) {
+	// 设置CORS头
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// 处理预检请求
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 只允许POST方法
+	if r.Method != "POST" {
+		http.Error(w, "只支持POST方法", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 解析请求体
+	var req SearchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "请求体解析失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 创建ExamService实例
+	examService := &ExamService{}
+
+	// 使用全局答案数据进行搜索
+	results, err := examService.SearchAnswers(globalAnswers, req.Query, req.Filters)
+	if err != nil {
+		response := SearchResponse{
+			Success: false,
+			Message: "搜索失败: " + err.Error(),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// 返回搜索结果
+	response := SearchResponse{
+		Success: true,
+		Results: results,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}

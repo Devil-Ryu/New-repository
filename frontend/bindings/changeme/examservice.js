@@ -16,6 +16,16 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * GetGlobalAnswers 获取全局答案数据
+ * @returns {$CancellablePromise<$models.AnswerItem[]>}
+ */
+export function GetGlobalAnswers() {
+    return $Call.ByID(950795820).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType1($result);
+    }));
+}
+
+/**
  * HideWindow 隐藏应用窗口
  * @returns {$CancellablePromise<void>}
  */
@@ -41,7 +51,7 @@ export function NextQuestion(area, config) {
  */
 export function OpenFileDialog(title, fileType) {
     return $Call.ByID(883910656, title, fileType).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType0($result);
+        return $$createType2($result);
     }));
 }
 
@@ -55,7 +65,7 @@ export function OpenFileDialog(title, fileType) {
  */
 export function ParseCSVFile(filePath, encoding, optionSeparator, answerSeparator) {
     return $Call.ByID(1360511181, filePath, encoding, optionSeparator, answerSeparator).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType2($result);
+        return $$createType1($result);
     }));
 }
 
@@ -102,6 +112,15 @@ export function SelectArea(screenshotData) {
 }
 
 /**
+ * SetGlobalAnswers 设置全局答案数据
+ * @param {$models.AnswerItem[]} answers
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetGlobalAnswers(answers) {
+    return $Call.ByID(47794008, answers);
+}
+
+/**
  * ShowWindow 显示应用窗口
  * @returns {$CancellablePromise<void>}
  */
@@ -143,9 +162,9 @@ export function TestOCRConnection(config) {
 }
 
 // Private type creation functions
-const $$createType0 = $models.FileDialogResult.createFrom;
-const $$createType1 = $models.AnswerItem.createFrom;
-const $$createType2 = $Create.Array($$createType1);
+const $$createType0 = $models.AnswerItem.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $models.FileDialogResult.createFrom;
 const $$createType3 = $models.SearchResult.createFrom;
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = $models.ScreenshotArea.createFrom;

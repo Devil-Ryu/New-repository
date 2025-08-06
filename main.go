@@ -4,6 +4,10 @@ import (
 	"embed"
 	_ "embed"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -58,6 +62,9 @@ func main() {
 		URL:              "/",
 	})
 
+	// 启动HTTP服务器
+	go startHTTPServer()
+
 	// Run the application. This blocks until the application has been exited.
 	err := app.Run()
 
@@ -65,4 +72,30 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// startHTTPServer 启动HTTP服务器
+func startHTTPServer() {
+	// 创建HTTP服务器
+	mux := http.NewServeMux()
+
+	// 注册搜索接口
+	mux.HandleFunc("/api/search", handleSearch)
+
+	// 启动服务器
+	port := ":8080"
+	log.Printf("HTTP服务器启动在端口 %s", port)
+
+	// 优雅关闭
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		if err := http.ListenAndServe(port, mux); err != nil {
+			log.Printf("HTTP服务器错误: %v", err)
+		}
+	}()
+
+	<-sigChan
+	log.Println("正在关闭HTTP服务器...")
 }

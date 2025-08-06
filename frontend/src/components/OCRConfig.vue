@@ -43,6 +43,12 @@ const testConnection = async () => {
     console.log('开始测试本地OCR连接')
     ocrConfig.status = '连接中'
     
+    // 检查URL是否为空
+    if (!ocrConfig.url || ocrConfig.url.trim() === '') {
+      ocrConfig.status = '连接失败'
+      throw new Error('OCR服务URL不能为空，请先设置服务地址')
+    }
+    
     // 通过后端代理测试OCR连接
     const { ExamService } = await import('../../bindings/changeme/index.js')
     const result = await ExamService.TestOCRConnection(ocrConfig)
