@@ -153,6 +153,10 @@ jobs:
           ls -la bin/*.exe 2>/dev/null || echo "没有找到.exe文件"
           
           # 然后创建安装程序
+          echo "开始创建安装程序..."
+          echo "当前工作目录: $(pwd)"
+          echo "检查文件是否存在:"
+          ls -la "bin/exam_assistant.exe"
           wails3 task ${{ matrix.target }}
         timeout-minutes: 25
 
