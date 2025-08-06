@@ -58,6 +58,7 @@ jobs:
 
       # 第四步：配置npm设置（提高下载稳定性）
       - name: 配置 npm 设置
+        shell: bash
         working-directory: ./frontend
         run: |
           # 设置npm镜像源
@@ -72,11 +73,13 @@ jobs:
 
       # 第五步：清理npm缓存
       - name: 清理 npm 缓存
+        shell: bash
         working-directory: ./frontend
         run: npm cache clean --force
 
       # 第六步：安装前端依赖
       - name: 安装前端依赖
+        shell: bash
         working-directory: ./frontend
         run: |
           # 使用ci命令安装依赖，确保版本一致性
@@ -93,12 +96,14 @@ jobs:
 
       # 第七步：构建前端代码
       - name: 构建前端代码
+        shell: bash
         working-directory: ./frontend
         run: npm run build
         timeout-minutes: 20
 
       # 第八步：安装Wails CLI工具
       - name: 安装 Wails3 CLI
+        shell: bash
         run: |
           # 安装最新版本的Wails3 CLI
           go install -v github.com/wailsapp/wails/v3/cmd/wails3@latest
@@ -106,6 +111,7 @@ jobs:
 
       # 第九步：构建应用程序
       - name: 构建应用程序
+        shell: bash
         env:
           ARCH: ${{ matrix.arch }}
           ROOT_DIR: ${{ github.workspace }}
@@ -143,10 +149,8 @@ jobs:
           ls -la bin/
           
           # 检查生成的exe文件
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            echo "检查Windows可执行文件:"
-            ls -la bin/*.exe || echo "没有找到.exe文件"
-          fi
+          echo "检查可执行文件:"
+          ls -la bin/*.exe 2>/dev/null || echo "没有找到.exe文件"
           
           # 然后创建安装程序
           wails3 task ${{ matrix.target }}
