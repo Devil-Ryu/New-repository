@@ -48,7 +48,7 @@ func main() {
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "考试小助手",
 		Width:  1200,
-		Height: 800,
+		Height: 840,
 		Mac: application.MacWindow{
 			InvisibleTitleBarHeight: 50,
 			Backdrop:                application.MacBackdropTranslucent,

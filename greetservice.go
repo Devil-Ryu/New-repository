@@ -722,67 +722,117 @@ func (e *ExamService) performOnlineOCR(imageData []byte, config OCRConfig) (stri
 	return strings.TrimSpace(result.ParsedResults[0].ParsedText), nil
 }
 
+// normalizeText 标准化文本，移除或替换特殊字符以提高匹配率
+func (e *ExamService) normalizeText(text string) string {
+	// 移除常见的标点符号和特殊字符，但保留中文字符
+	// 这些字符在OCR识别中经常出现，但在语义匹配时应该被忽略
+	replacer := strings.NewReplacer(
+		"(", "", ")", "", "[", "", "]", "", "{", "", "}", "",
+		"（", "", "）", "", "【", "", "】", "", "《", "", "》", "",
+		"\"", "", "'", "", "`", "", "~", "", "!", "", "@", "",
+		"#", "", "$", "", "%", "", "^", "", "&", "", "*", "",
+		"+", "", "=", "", "|", "", "\\", "", "/", "", "?", "",
+		"<", "", ">", "", ",", "", ".", "", ";", "", ":", "",
+		"、", "", "，", "", "。", "", "；", "", "：", "", "！", "",
+		"？", "", "…", "", "—", "", "－", "", "·", "", "·", "",
+		"　", " ", "  ", " ", // 多个空格替换为单个空格
+	)
+
+	normalized := replacer.Replace(text)
+
+	// 移除多余的空格
+	normalized = strings.TrimSpace(normalized)
+
+	// 将多个连续空格替换为单个空格
+	for strings.Contains(normalized, "  ") {
+		normalized = strings.ReplaceAll(normalized, "  ", " ")
+	}
+
+	return normalized
+}
+
 // SearchAnswers 搜索答案
 func (e *ExamService) SearchAnswers(answers []AnswerItem, query string) ([]SearchResult, error) {
 	log.Println("SearchAnswers", answers, query)
 	results := []SearchResult{}
-	query = strings.ToLower(strings.TrimSpace(query))
 
-	if query == "" {
+	// 预处理查询文本，移除特殊字符
+	normalizedQuery := e.normalizeText(query)
+	normalizedQuery = strings.ToLower(strings.TrimSpace(normalizedQuery))
+
+	// 如果查询为空，返回所有答案
+	if normalizedQuery == "" {
+		log.Println("查询为空，返回所有答案")
+		for _, answer := range answers {
+			results = append(results, SearchResult{
+				Item:    answer,
+				Score:   0.5, // 给予中等匹配度
+				Matched: "全部结果",
+				Matches: []int{},
+			})
+		}
 		return results, nil
 	}
 
+	// 记录所有可能的匹配结果
+	allPossibleMatches := []SearchResult{}
+
 	for _, answer := range answers {
 		question := answer.Question
-		questionLower := strings.ToLower(question)
+		// 预处理题目文本
+		normalizedQuestion := e.normalizeText(question)
+		questionLower := strings.ToLower(normalizedQuestion)
 		score := 0.0
 		matched := ""
 		maxScore := 0.0
 		bestMatches := []int{}
 
-		// 计算题目重合度（使用原始文本计算匹配位置）
-		questionScore, _ := e.calculateOverlapScore(query, questionLower)
-		questionMatches := e.calculateMatchesForOriginalText(question, query)
+		// 计算题目重合度（使用标准化后的文本进行匹配）
+		questionScore, _ := e.calculateOverlapScore(normalizedQuery, questionLower)
+		questionMatches := e.calculateMatchesForOriginalText(question, normalizedQuery)
 		if questionScore > maxScore {
 			maxScore = questionScore
-			matched = query
+			matched = normalizedQuery
 			bestMatches = questionMatches
 		}
 
 		// 计算答案重合度
 		for _, ans := range answer.Answer {
-			ansLower := strings.ToLower(ans)
-			ansScore, _ := e.calculateOverlapScore(query, ansLower)
-			ansMatches := e.calculateMatchesForOriginalText(ans, query)
+			normalizedAns := e.normalizeText(ans)
+			ansLower := strings.ToLower(normalizedAns)
+			ansScore, _ := e.calculateOverlapScore(normalizedQuery, ansLower)
+			ansMatches := e.calculateMatchesForOriginalText(ans, normalizedQuery)
 			if ansScore > maxScore {
 				maxScore = ansScore
-				matched = query
+				matched = normalizedQuery
 				bestMatches = ansMatches
 			}
 		}
 
 		// 计算选项重合度
 		for _, option := range answer.Options {
-			optionLower := strings.ToLower(option)
-			optionScore, _ := e.calculateOverlapScore(query, optionLower)
-			optionMatches := e.calculateMatchesForOriginalText(option, query)
+			normalizedOption := e.normalizeText(option)
+			optionLower := strings.ToLower(normalizedOption)
+			optionScore, _ := e.calculateOverlapScore(normalizedQuery, optionLower)
+			optionMatches := e.calculateMatchesForOriginalText(option, normalizedQuery)
 			optionScore = optionScore * 0.8 // 选项权重稍低
 			if optionScore > maxScore {
 				maxScore = optionScore
-				matched = query
+				matched = normalizedQuery
 				bestMatches = optionMatches
 			}
 		}
 
 		score = maxScore
 
-		if score > 0 {
+		// 记录所有可能的匹配结果，包括低匹配度的
+		if score >= 0 {
 			// 限制分数不超过1.0
 			if score > 1.0 {
 				score = 1.0
 			}
 			log.Printf("搜索结果: 题目='%s', 分数=%.2f, 匹配位置=%v", answer.Question, score, bestMatches)
-			results = append(results, SearchResult{
+			allPossibleMatches = append(allPossibleMatches, SearchResult{
 				Item:    answer,
 				Score:   score,
 				Matched: matched,
@@ -791,26 +841,47 @@ func (e *ExamService) SearchAnswers(answers []AnswerItem, query string) ([]Searc
 		}
 	}
 
-	return results, nil
+	// // 如果找到了高匹配度的结果（>0.3），返回这些结果
+	// highScoreResults := []SearchResult{}
+	// for _, result := range allPossibleMatches {
+	// 	if result.Score > 0.3 {
+	// 		highScoreResults = append(highScoreResults, result)
+	// 	}
+	// }
+
+	// // 如果有高匹配度的结果，返回这些结果
+	// if len(highScoreResults) > 0 {
+	// 	// 按匹配度排序
+	// 	sort.Slice(highScoreResults, func(i, j int) bool {
+	// 		return highScoreResults[i].Score > highScoreResults[j].Score
+	// 	})
+	// 	return highScoreResults, nil
+	// }
+
+	// // 如果没有高匹配度的结果，返回所有可能的匹配结果（包括低匹配度的）
+	// // 按匹配度排序
+	// sort.Slice(allPossibleMatches, func(i, j int) bool {
+	// 	return allPossibleMatches[i].Score > allPossibleMatches[j].Score
+	// })
+
+	return allPossibleMatches, nil
 }
 
-// calculateOverlapScore 计算重合度分数
+// calculateOverlapScore 计算重合度分数 - 使用智能匹配算法
 func (e *ExamService) calculateOverlapScore(query, text string) (float64, []int) {
 	if query == "" || text == "" {
 		return 0.0, nil
 	}
 
-	// 完全匹配
+	// 完全匹配 - 100%匹配度
 	if query == text {
 		return 1.0, []int{0, len(query)}
 	}
 
-	// 连续包含匹配
+	// 连续包含匹配 - 给予高匹配度
 	if strings.Contains(text, query) {
 		start := strings.Index(text, query)
 		queryLen := len(query)
-		textLen := len(text)
-		ratio := float64(queryLen) / float64(textLen)
 
 		// 生成匹配位置的字符索引
 		matches := []int{}
@@ -818,87 +889,186 @@ func (e *ExamService) calculateOverlapScore(query, text string) (float64, []int)
 			matches = append(matches, i)
 		}
 
-		return 0.8 + (ratio * 0.2), matches
+		// 包含匹配给予95%的匹配度
+		return 0.95, matches
 	}
 
-	// 模糊匹配和不连续匹配
-	return e.fuzzyMatch(query, text)
+	// 使用智能匹配算法
+	return e.calculateSmartSimilarity(query, text)
 }
 
-// fuzzyMatch 模糊匹配算法
-func (e *ExamService) fuzzyMatch(query, text string) (float64, []int) {
-	queryRunes := []rune(query)
-	textRunes := []rune(text)
+// calculateSmartSimilarity 智能相似度计算
+func (e *ExamService) calculateSmartSimilarity(query, text string) (float64, []int) {
+	// 1. 首先检查是否有任何共同的关键词
+	commonWords := e.findCommonWords(query, text)
+	if len(commonWords) == 0 {
+		// 没有共同关键词，返回0
+		// // 如果没有共同关键词，使用编辑距离作为备选方案
+		// editDistance := e.calculateEditDistance([]rune(query), []rune(text))
+		// maxPossibleDistance := max(len(query), len(text))
+		// editSimilarity := 1.0 - float64(editDistance)/float64(maxPossibleDistance)
 
-	if len(queryRunes) == 0 || len(textRunes) == 0 {
+		// // 降低阈值，允许更多可能的匹配
+		// if editSimilarity > 0.1 {
+		// 	matches := e.calculateSimpleMatches([]rune(query), []rune(text))
+		// 	return editSimilarity * 0.5, matches // 降低权重
+		// }
+		return 0, nil
+	}
+
+	// 2. 计算编辑距离相似度
+	editDistance := e.calculateEditDistance([]rune(query), []rune(text))
+	maxPossibleDistance := max(len(query), len(text))
+	editSimilarity := 1.0 - float64(editDistance)/float64(maxPossibleDistance)
+
+	// 3. 计算关键词匹配度
+	keywordSimilarity := e.calculateKeywordSimilarity(query, text)
+
+	// 4. 综合评分：编辑距离30%，关键词匹配70%
+	similarity := editSimilarity*0.3 + keywordSimilarity*0.7
+
+	// 5. 降低阈值，允许更多可能的匹配
+	if similarity < 0.05 {
 		return 0.0, nil
 	}
 
-	// 动态规划计算最长公共子序列
-	dp := make([][]int, len(queryRunes)+1)
+	// 6. 计算匹配位置
+	matches := e.calculateSimpleMatches([]rune(query), []rune(text))
+
+	return similarity, matches
+}
+
+// findCommonWords 查找共同的关键词
+func (e *ExamService) findCommonWords(s1, s2 string) []string {
+	// 将文本分割为单词
+	words1 := e.extractWords(s1)
+	words2 := e.extractWords(s2)
+
+	// 找到共同的单词
+	common := make([]string, 0)
+	wordSet := make(map[string]bool)
+
+	for _, word := range words1 {
+		wordSet[word] = true
+	}
+
+	for _, word := range words2 {
+		if wordSet[word] && len(word) > 1 { // 忽略单字符单词
+			common = append(common, word)
+		}
+	}
+
+	return common
+}
+
+// extractWords 提取文本中的单词
+func (e *ExamService) extractWords(text string) []string {
+	// 移除标点符号和特殊字符
+	normalized := e.normalizeText(text)
+
+	// 按空格分割
+	words := strings.Fields(normalized)
+
+	// 过滤掉太短的单词
+	result := make([]string, 0)
+	for _, word := range words {
+		if len(word) > 1 {
+			result = append(result, strings.ToLower(word))
+		}
+	}
+
+	return result
+}
+
+// calculateKeywordSimilarity 计算关键词相似度
+func (e *ExamService) calculateKeywordSimilarity(s1, s2 string) float64 {
+	words1 := e.extractWords(s1)
+	words2 := e.extractWords(s2)
+
+	if len(words1) == 0 || len(words2) == 0 {
+		return 0.0
+	}
+
+	// 计算共同单词的数量
+	commonWords := e.findCommonWords(s1, s2)
+	commonCount := len(commonWords)
+
+	// 计算相似度：共同单词数 / 总单词数
+	totalWords := len(words1) + len(words2) - commonCount
+	if totalWords == 0 {
+		return 0.0
+	}
+
+	similarity := float64(commonCount) / float64(totalWords)
+
+	// 给予共同单词的权重奖励
+	if commonCount > 0 {
+		similarity = similarity * 1.5
+		if similarity > 1.0 {
+			similarity = 1.0
+		}
+	}
+
+	return similarity
+}
+
+// calculateEditDistance 计算编辑距离
+func (e *ExamService) calculateEditDistance(query, text []rune) int {
+	lenQuery := len(query)
+	lenText := len(text)
+
+	// 创建DP表
+	dp := make([][]int, lenQuery+1)
 	for i := range dp {
-		dp[i] = make([]int, len(textRunes)+1)
+		dp[i] = make([]int, lenText+1)
+	}
+
+	// 初始化第一行和第一列
+	for i := 0; i <= lenQuery; i++ {
+		dp[i][0] = i
+	}
+	for j := 0; j <= lenText; j++ {
+		dp[0][j] = j
 	}
 
 	// 填充DP表
-	for i := 1; i <= len(queryRunes); i++ {
-		for j := 1; j <= len(textRunes); j++ {
-			if queryRunes[i-1] == textRunes[j-1] {
-				dp[i][j] = dp[i-1][j-1] + 1
+	for i := 1; i <= lenQuery; i++ {
+		for j := 1; j <= lenText; j++ {
+			if query[i-1] == text[j-1] {
+				dp[i][j] = dp[i-1][j-1]
 			} else {
-				dp[i][j] = max(dp[i-1][j], dp[i][j-1])
+				dp[i][j] = min(dp[i-1][j], min(dp[i][j-1], dp[i-1][j-1])) + 1
 			}
 		}
 	}
 
-	lcsLength := dp[len(queryRunes)][len(textRunes)]
-	if lcsLength == 0 {
-		return 0.0, nil
-	}
-
-	// 回溯找到匹配位置
-	matches := e.backtrackMatches(dp, queryRunes, textRunes)
-
-	// 计算分数：LCS长度 / 查询长度
-	score := float64(lcsLength) / float64(len(queryRunes))
-
-	// 根据匹配的连续性调整分数
-	continuityBonus := e.calculateContinuityBonus(matches)
-	score = score * (0.6 + continuityBonus*0.4)
-
-	return score, matches
+	return dp[lenQuery][lenText]
 }
 
-// backtrackMatches 回溯找到匹配位置
-func (e *ExamService) backtrackMatches(dp [][]int, query, text []rune) []int {
+// calculateSimpleMatches 计算简化的匹配位置
+func (e *ExamService) calculateSimpleMatches(query, text []rune) []int {
 	matches := []int{}
-	i, j := len(query), len(text)
 
-	for i > 0 && j > 0 {
-		if query[i-1] == text[j-1] {
-			matches = append([]int{j - 1}, matches...)
-			i--
-			j--
-		} else if dp[i-1][j] > dp[i][j-1] {
-			i--
-		} else {
-			j--
-		}
-	}
-
-	// 转换为字符位置（考虑中文字符）
+	// 简单的包含匹配
+	queryStr := string(query)
 	textStr := string(text)
-	charMatches := []int{}
-	charIndex := 0
 
-	for i := range textStr {
-		if contains(matches, charIndex) {
-			charMatches = append(charMatches, i)
+	if strings.Contains(textStr, queryStr) {
+		start := strings.Index(textStr, queryStr)
+		for i := start; i < start+len(queryStr); i++ {
+			matches = append(matches, i)
 		}
-		charIndex++
 	}
 
-	return charMatches
+	return matches
+}
+
+// min 返回两个整数中的较小值
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // contains 检查切片是否包含某个值
@@ -909,24 +1079,6 @@ func contains(slice []int, value int) bool {
 		}
 	}
 	return false
-}
-
-// calculateContinuityBonus 计算连续性奖励
-func (e *ExamService) calculateContinuityBonus(matches []int) float64 {
-	if len(matches) <= 1 {
-		return 0.0
-	}
-
-	continuous := 0
-	total := len(matches)
-
-	for i := 1; i < len(matches); i++ {
-		if matches[i] == matches[i-1]+1 {
-			continuous++
-		}
-	}
-
-	return float64(continuous) / float64(total-1)
 }
 
 // max 返回两个整数中的较大值
@@ -987,8 +1139,13 @@ func (e *ExamService) findCorrespondingPosition(original, lower string, lowerPos
 // 简化匹配位置计算，直接基于原始文本计算
 func (e *ExamService) calculateMatchesForOriginalText(originalText, query string) []int {
 	matches := []int{}
-	originalLower := strings.ToLower(originalText)
-	queryLower := strings.ToLower(query)
+
+	// 标准化原始文本和查询文本
+	normalizedOriginal := e.normalizeText(originalText)
+	normalizedQuery := e.normalizeText(query)
+
+	originalLower := strings.ToLower(normalizedOriginal)
+	queryLower := strings.ToLower(normalizedQuery)
 
 	// 简单的包含匹配
 	if strings.Contains(originalLower, queryLower) {

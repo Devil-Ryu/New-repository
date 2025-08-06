@@ -251,8 +251,7 @@ const importAnswers = async () => {
         // 重置搜索状态
         resetSearchState()
         
-        // 显示成功提示
-        alert(`成功导入 ${newAnswers.length} 条答案数据！`)
+        // 不再显示弹窗提示，静默导入成功
       } catch (error) {
         console.error('文件导入失败:', error)
         
@@ -528,11 +527,20 @@ const searchAnswers = async () => {
   console.log('答案数量:', answers.value.length)
   
   try {
-    // 如果搜索内容为空，显示所有答案
+    // 如果搜索内容为空，返回所有结果
     if (!ocrResult.value.trim()) {
-      console.log('搜索内容为空，显示所有答案')
-      searchResults.value = []
-      hasSearched.value = false
+      console.log('搜索内容为空，返回所有结果')
+      hasSearched.value = true
+      
+      // 将所有答案转换为搜索结果格式，匹配度为0.5（中等匹配）
+      searchResults.value = answers.value.map(answer => ({
+        item: answer,
+        score: 0.5, // 给予中等匹配度
+        matched: '全部结果',
+        matches: []
+      }))
+      
+      console.log('返回所有结果，共', searchResults.value.length, '条')
       return
     }
     
@@ -1331,7 +1339,7 @@ onMounted(() => {
   border: 1px solid #ddd;
   border-radius: 4px;
   overflow: hidden;
-  height: 120px;
+  height: 160px;
   width: 100%;
   display: flex;
   align-items: center;

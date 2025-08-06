@@ -17,7 +17,9 @@
     "comments": "Built using Wails (https://wails.io)"
   },
   "debounceMS": 100,
-  "devServer": "auto",
+  "devServer": {
+    "hmr": true
+  },
   "appargs": "",
   "nsisType": "user",
   "webview2Path": "embed",
