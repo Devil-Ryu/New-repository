@@ -782,6 +782,12 @@ func (e *ExamService) SearchAnswers(answers []AnswerItem, query string, filters 
 		return results, nil
 	}
 
+	// 如果答案数据为空，返回空结果
+	if len(answers) == 0 {
+		log.Println("答案数据为空")
+		return results, nil
+	}
+
 	// 记录所有可能的匹配结果
 	allPossibleMatches := []SearchResult{}
 
@@ -855,6 +861,11 @@ func (e *ExamService) SearchAnswers(answers []AnswerItem, query string, filters 
 				} else {
 					shouldInclude = filters.Low
 				}
+			}
+
+			// 如果查询为空，显示所有结果
+			if normalizedQuery == "" {
+				shouldInclude = true
 			}
 
 			if shouldInclude {
