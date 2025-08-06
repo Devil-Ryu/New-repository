@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -752,8 +753,15 @@ func (e *ExamService) normalizeText(text string) string {
 }
 
 // SearchAnswers 搜索答案
-func (e *ExamService) SearchAnswers(answers []AnswerItem, query string) ([]SearchResult, error) {
-	log.Println("SearchAnswers", answers, query)
+// AccuracyFilters 准确度筛选参数
+type AccuracyFilters struct {
+	High   bool `json:"high"`   // 高准确率 (≥80%)
+	Medium bool `json:"medium"` // 中准确率 (50%-79%)
+	Low    bool `json:"low"`    // 低准确率 (<50%)
+}
+
+func (e *ExamService) SearchAnswers(answers []AnswerItem, query string, filters AccuracyFilters) ([]SearchResult, error) {
+	log.Println("SearchAnswers", answers, query, filters)
 	results := []SearchResult{}
 
 	// 预处理查询文本，移除特殊字符
@@ -831,38 +839,40 @@ func (e *ExamService) SearchAnswers(answers []AnswerItem, query string) ([]Searc
 			if score > 1.0 {
 				score = 1.0
 			}
-			log.Printf("搜索结果: 题目='%s', 分数=%.2f, 匹配位置=%v", answer.Question, score, bestMatches)
-			allPossibleMatches = append(allPossibleMatches, SearchResult{
-				Item:    answer,
-				Score:   score,
-				Matched: matched,
-				Matches: bestMatches,
-			})
+
+			// 根据准确度筛选
+			shouldInclude := false
+
+			// 如果所有过滤器都为false，显示所有结果
+			if !filters.High && !filters.Medium && !filters.Low {
+				shouldInclude = true
+			} else {
+				// 否则按过滤器筛选
+				if score >= 0.8 {
+					shouldInclude = filters.High
+				} else if score >= 0.5 {
+					shouldInclude = filters.Medium
+				} else {
+					shouldInclude = filters.Low
+				}
+			}
+
+			if shouldInclude {
+				log.Printf("搜索结果: 题目='%s', 分数=%.2f, 匹配位置=%v", answer.Question, score, bestMatches)
+				allPossibleMatches = append(allPossibleMatches, SearchResult{
+					Item:    answer,
+					Score:   score,
+					Matched: matched,
+					Matches: bestMatches,
+				})
+			}
 		}
 	}
 
-	// // 如果找到了高匹配度的结果（>0.3），返回这些结果
-	// highScoreResults := []SearchResult{}
-	// for _, result := range allPossibleMatches {
-	// 	if result.Score > 0.3 {
-	// 		highScoreResults = append(highScoreResults, result)
-	// 	}
-	// }
-
-	// // 如果有高匹配度的结果，返回这些结果
-	// if len(highScoreResults) > 0 {
-	// 	// 按匹配度排序
-	// 	sort.Slice(highScoreResults, func(i, j int) bool {
-	// 		return highScoreResults[i].Score > highScoreResults[j].Score
-	// 	})
-	// 	return highScoreResults, nil
-	// }
-
-	// // 如果没有高匹配度的结果，返回所有可能的匹配结果（包括低匹配度的）
-	// // 按匹配度排序
-	// sort.Slice(allPossibleMatches, func(i, j int) bool {
-	// 	return allPossibleMatches[i].Score > allPossibleMatches[j].Score
-	// })
+	// 按匹配度排序
+	sort.Slice(allPossibleMatches, func(i, j int) bool {
+		return allPossibleMatches[i].Score > allPossibleMatches[j].Score
+	})
 
 	return allPossibleMatches, nil
 }

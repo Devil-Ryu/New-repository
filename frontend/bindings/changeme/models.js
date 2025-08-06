@@ -7,6 +7,55 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * SearchAnswers 搜索答案
+ * AccuracyFilters 准确度筛选参数
+ */
+export class AccuracyFilters {
+    /**
+     * Creates a new AccuracyFilters instance.
+     * @param {Partial<AccuracyFilters>} [$$source = {}] - The source object to create the AccuracyFilters.
+     */
+    constructor($$source = {}) {
+        if (!("high" in $$source)) {
+            /**
+             * 高准确率 (≥80%)
+             * @member
+             * @type {boolean}
+             */
+            this["high"] = false;
+        }
+        if (!("medium" in $$source)) {
+            /**
+             * 中准确率 (50%-79%)
+             * @member
+             * @type {boolean}
+             */
+            this["medium"] = false;
+        }
+        if (!("low" in $$source)) {
+            /**
+             * 低准确率 (<50%)
+             * @member
+             * @type {boolean}
+             */
+            this["low"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AccuracyFilters instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AccuracyFilters}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AccuracyFilters(/** @type {Partial<AccuracyFilters>} */($$parsedSource));
+    }
+}
+
+/**
  * AnswerItem 答案项
  */
 export class AnswerItem {

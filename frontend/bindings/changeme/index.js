@@ -8,6 +8,7 @@ export {
 };
 
 export {
+    AccuracyFilters,
     AnswerItem,
     FileDialogResult,
     OCRConfig,

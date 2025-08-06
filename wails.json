@@ -1,32 +1,32 @@
 {
-  "name": "考试小助手",
-  "outputfilename": "exam_assistant",
-  "frontend:install": "npm install",
-  "frontend:build": "npm run build",
-  "frontend:dev:watcher": "npm run dev",
-  "frontend:dev:serverUrl": "auto",
-  "author": {
-    "name": "Your Name",
-    "email": "your.email@example.com"
-  },
-  "info": {
-    "companyName": "Your Company",
-    "productName": "考试小助手",
-    "productVersion": "1.0.0",
-    "copyright": "Copyright........",
-    "comments": "Built using Wails (https://wails.io)"
-  },
-  "debounceMS": 100,
-  "devServer": {
-    "hmr": true
-  },
-  "appargs": "",
-  "nsisType": "user",
-  "webview2Path": "embed",
-  "compression": "upx",
-  "pack": true,
-  "icon": "build/appicon.png",
-  "bindings": {
-    "output": "frontend/bindings"
-  }
-} 
+    "name": "考试小助手",
+    "outputfilename": "exam_assistant",
+    "frontend:install": "npm install",
+    "frontend:build": "npm run build",
+    "frontend:dev:watcher": "npm run dev",
+    "frontend:dev:serverUrl": "auto",
+    "author": {
+      "name": "Your Name",
+      "email": "your.email@example.com"
+    },
+    "info": {
+      "companyName": "Your Company",
+      "productName": "考试小助手",
+      "productVersion": "1.0.0",
+      "copyright": "Copyright........",
+      "comments": "Built using Wails (https://wails.io)"
+    },
+    "debounceMS": 100,
+    "devServer": {
+      "hmr": true
+    },
+    "appargs": "",
+    "nsisType": "user",
+    "webview2Path": "embed",
+    "compression": "upx",
+    "pack": true,
+    "icon": "build/appicon.png",
+    "bindings": {
+      "output": "frontend/bindings"
+    }
+  } 

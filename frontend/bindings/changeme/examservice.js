@@ -79,13 +79,13 @@ export function ReadFileContent(filePath, encoding) {
 }
 
 /**
- * SearchAnswers 搜索答案
  * @param {$models.AnswerItem[]} answers
  * @param {string} query
+ * @param {$models.AccuracyFilters} filters
  * @returns {$CancellablePromise<$models.SearchResult[]>}
  */
-export function SearchAnswers(answers, query) {
-    return $Call.ByID(1576479801, answers, query).then(/** @type {($result: any) => any} */(($result) => {
+export function SearchAnswers(answers, query, filters) {
+    return $Call.ByID(1576479801, answers, query, filters).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType4($result);
     }));
 }

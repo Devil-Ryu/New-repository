@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build:dev": "vite build --minify false --mode development",
     "build": "vite build --mode production",
     "preview": "vite preview"
@@ -18,7 +18,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "4.5.2",
-    "vite": "5.1.4"
+    "vite": "5.1.4",
+    "terser": "^5.28.0"
   },
   "engines": {
     "node": ">=18.0.0",
