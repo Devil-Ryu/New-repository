@@ -109,8 +109,8 @@ jobs:
         run: |
           # 使用Wails3构建多平台可执行文件
           # 根据矩阵配置构建不同平台的目标文件
-          wails3 task build 
-          # wails3 task ${{ matrix.target }}
+          # wails3 task build 
+          wails3 task ${{ matrix.target }}
         timeout-minutes: 25
 
       # 第十步：上传构建产物
