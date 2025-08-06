@@ -106,10 +106,49 @@ jobs:
 
       # 第九步：构建应用程序
       - name: 构建应用程序
+        env:
+          ARCH: ${{ matrix.arch }}
+          ROOT_DIR: ${{ github.workspace }}
+          BIN_DIR: bin
+          APP_NAME: exam_assistant
+          PRODUCTION: "true"
+          GOOS: windows
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: 0
         run: |
+          # 调试信息
+          echo "当前工作目录: $(pwd)"
+          echo "ARCH: $ARCH"
+          echo "ROOT_DIR: $ROOT_DIR"
+          echo "BIN_DIR: $BIN_DIR"
+          echo "APP_NAME: $APP_NAME"
+          echo "PRODUCTION: $PRODUCTION"
+          echo "GOOS: $GOOS"
+          echo "GOARCH: $GOARCH"
+          echo "目标任务: ${{ matrix.target }}"
+          
+          # 检查目录结构
+          echo "目录结构:"
+          ls -la
+          echo "bin目录内容:"
+          ls -la bin/ || echo "bin目录不存在"
+          
           # 使用Wails3构建多平台可执行文件
           # 根据矩阵配置构建不同平台的目标文件
-          # wails3 task build 
+          # 先构建应用程序
+          wails3 task build
+          
+          # 检查构建结果
+          echo "构建后的bin目录内容:"
+          ls -la bin/
+          
+          # 检查生成的exe文件
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            echo "检查Windows可执行文件:"
+            ls -la bin/*.exe || echo "没有找到.exe文件"
+          fi
+          
+          # 然后创建安装程序
           wails3 task ${{ matrix.target }}
         timeout-minutes: 25
 
