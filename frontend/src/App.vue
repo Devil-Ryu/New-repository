@@ -365,7 +365,7 @@ onMounted(() => {
     <!-- 全局区域选择弹窗 -->
     <t-dialog
       v-model:visible="showAreaSelector"
-      title="选择截图区域"
+      title="划区截图 - 请在下方的截图中选择区域并点击确定"
       width="98%"
       height="98%"
       :close-on-overlay-click="false"
@@ -374,6 +374,12 @@ onMounted(() => {
       class="area-selector-dialog"
     >
       <div class="area-selector">
+        <!-- 提示信息 -->
+        <div class="area-tip">
+          <t-icon name="info-circle" />
+          <span>请在下方的截图中拖拽鼠标选择您需要的区域，选择完成后点击"确定"按钮</span>
+        </div>
+        
         <!-- 上方控制区域 -->
         <div class="area-controls-top">
           <div class="area-info">
@@ -514,10 +520,36 @@ onMounted(() => {
   z-index: 9999;
 }
 
+/* 确保弹框显示在屏幕最上方 */
+.area-selector-dialog .t-dialog {
+  top: 0 !important;
+  margin-top: 0 !important;
+  transform: none !important;
+}
+
 .area-selector {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.area-tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(0, 82, 217, 0.1);
+  border: 1px solid rgba(0, 82, 217, 0.2);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  color: #0052d9;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.area-tip .t-icon {
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .area-controls-top {

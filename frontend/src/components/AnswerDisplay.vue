@@ -294,8 +294,27 @@ const getFilteredTypeStats = () => {
 
 // 高亮匹配的文本
 const highlightText = (text, matches) => {
-  // 直接返回原文本，不进行高亮处理
-  return text
+  if (!text || !matches || matches.length === 0) {
+    return text
+  }
+
+  let highlightedText = text
+
+  // 对每个匹配项进行高亮处理
+  matches.forEach(match => {
+    if (match && typeof match === 'string' && match.trim()) {
+      // 转义正则表达式特殊字符
+      const escapedMatch = match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      
+      // 创建正则表达式，不区分大小写，支持中文
+      const regex = new RegExp(`(${escapedMatch})`, 'gi')
+      
+      // 替换匹配的文本为高亮版本
+      highlightedText = highlightedText.replace(regex, '<span class="highlight-match">匹配到($1)</span>')
+    }
+  })
+
+  return highlightedText
 }
 
 // 更新答案数据
@@ -630,5 +649,31 @@ defineExpose({
   font-size: 18px;
   font-weight: bold;
   text-align: center;
+}
+
+/* 高亮匹配文本样式 */
+.highlight-match {
+  background-color: #ffeb3b;
+  color: #333;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  animation: highlight-pulse 0.3s ease-in-out;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    background-color: #fff3cd;
+    transform: scale(1);
+  }
+  50% {
+    background-color: #ffeb3b;
+    transform: scale(1.05);
+  }
+  100% {
+    background-color: #ffeb3b;
+    transform: scale(1);
+  }
 }
 </style> 
