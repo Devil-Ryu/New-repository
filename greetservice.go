@@ -926,7 +926,29 @@ func (e *ExamService) calculateOverlapScore(query, text string) (float64, []int)
 			matches = append(matches, i)
 		}
 
-		// 包含匹配给予95%的匹配度
+		// 计算匹配率：匹配字符数 / 目标文本总字符数
+		textLen := utf8.RuneCountInString(text)
+		matchRate := float64(charLen) / float64(textLen)
+
+		// 包含匹配给予90-95%的匹配度，但不超过95%
+		score := 0.9 + matchRate*0.05
+		if score > 0.95 {
+			score = 0.95
+		}
+
+		return score, matches
+	}
+
+	// 目标文本包含在查询文本中
+	if strings.Contains(query, text) {
+		// 生成所有字符位置的索引
+		matches := []int{}
+		textLen := utf8.RuneCountInString(text)
+		for i := 0; i < textLen; i++ {
+			matches = append(matches, i)
+		}
+
+		// 完全匹配，给予95%的匹配度
 		return 0.95, matches
 	}
 
@@ -939,17 +961,16 @@ func (e *ExamService) calculateSmartSimilarity(query, text string) (float64, []i
 	// 1. 首先检查是否有任何共同的关键词
 	commonWords := e.findCommonWords(query, text)
 	if len(commonWords) == 0 {
-		// 没有共同关键词，返回0
-		// // 如果没有共同关键词，使用编辑距离作为备选方案
-		// editDistance := e.calculateEditDistance([]rune(query), []rune(text))
-		// maxPossibleDistance := max(len(query), len(text))
-		// editSimilarity := 1.0 - float64(editDistance)/float64(maxPossibleDistance)
+		// 没有共同关键词，尝试使用编辑距离作为备选方案
+		editDistance := e.calculateEditDistance([]rune(query), []rune(text))
+		maxPossibleDistance := max(len(query), len(text))
+		editSimilarity := 1.0 - float64(editDistance)/float64(maxPossibleDistance)
 
-		// // 降低阈值，允许更多可能的匹配
-		// if editSimilarity > 0.1 {
-		// 	matches := e.calculateSimpleMatches([]rune(query), []rune(text))
-		// 	return editSimilarity * 0.5, matches // 降低权重
-		// }
+		// 降低阈值，允许更多可能的匹配
+		if editSimilarity > 0.3 {
+			matches := e.calculateSimpleMatches([]rune(query), []rune(text))
+			return editSimilarity * 0.6, matches // 降低权重
+		}
 		return 0, nil
 	}
 
@@ -961,18 +982,64 @@ func (e *ExamService) calculateSmartSimilarity(query, text string) (float64, []i
 	// 3. 计算关键词匹配度
 	keywordSimilarity := e.calculateKeywordSimilarity(query, text)
 
-	// 4. 综合评分：编辑距离30%，关键词匹配70%
-	similarity := editSimilarity*0.3 + keywordSimilarity*0.7
+	// 4. 计算字符匹配度
+	charSimilarity := e.calculateCharSimilarity(query, text)
 
-	// 5. 降低阈值，允许更多可能的匹配
-	if similarity < 0.05 {
+	// 5. 综合评分：编辑距离20%，关键词匹配50%，字符匹配30%
+	similarity := editSimilarity*0.2 + keywordSimilarity*0.5 + charSimilarity*0.3
+
+	// 6. 调整阈值，允许更多可能的匹配
+	if similarity < 0.1 {
 		return 0.0, nil
 	}
 
-	// 6. 计算匹配位置
+	// 7. 计算匹配位置
 	matches := e.calculateSimpleMatches([]rune(query), []rune(text))
 
 	return similarity, matches
+}
+
+// calculateCharSimilarity 计算字符级别的相似度
+func (e *ExamService) calculateCharSimilarity(query, text string) float64 {
+	if query == "" || text == "" {
+		return 0.0
+	}
+
+	// 将字符串转换为字符数组
+	queryChars := []rune(query)
+	textChars := []rune(text)
+
+	// 计算共同字符的数量
+	commonChars := 0
+	queryCharSet := make(map[rune]int)
+	textCharSet := make(map[rune]int)
+
+	// 统计查询文本中的字符
+	for _, char := range queryChars {
+		queryCharSet[char]++
+	}
+
+	// 统计目标文本中的字符
+	for _, char := range textChars {
+		textCharSet[char]++
+	}
+
+	// 计算共同字符数
+	for char, queryCount := range queryCharSet {
+		if textCount, exists := textCharSet[char]; exists {
+			// 取两个文本中该字符出现次数的最小值
+			commonChars += min(queryCount, textCount)
+		}
+	}
+
+	// 计算相似度：共同字符数 / 总字符数
+	totalChars := len(queryChars) + len(textChars)
+	if totalChars == 0 {
+		return 0.0
+	}
+
+	similarity := float64(commonChars*2) / float64(totalChars)
+	return similarity
 }
 
 // findCommonWords 查找共同的关键词
@@ -1038,9 +1105,18 @@ func (e *ExamService) calculateKeywordSimilarity(s1, s2 string) float64 {
 
 	similarity := float64(commonCount) / float64(totalWords)
 
-	// 给予共同单词的权重奖励
+	// 给予共同单词的权重奖励，但更合理的计算方式
 	if commonCount > 0 {
-		similarity = similarity * 1.5
+		// 计算共同单词在各自文本中的覆盖率
+		coverage1 := float64(commonCount) / float64(len(words1))
+		coverage2 := float64(commonCount) / float64(len(words2))
+
+		// 使用几何平均数来平衡两个覆盖率
+		balancedCoverage := (coverage1 + coverage2) / 2.0
+
+		// 综合相似度和覆盖率
+		similarity = (similarity + balancedCoverage) / 2.0
+
 		if similarity > 1.0 {
 			similarity = 1.0
 		}
@@ -1090,18 +1166,45 @@ func (e *ExamService) calculateSimpleMatches(query, text []rune) []int {
 	queryStr := string(query)
 	textStr := string(text)
 
+	// 情况1：查询文本包含在目标文本中
 	if strings.Contains(textStr, queryStr) {
 		// 找到匹配的起始位置
 		start := strings.Index(textStr, queryStr)
 
 		// 将字节位置转换为字符位置
-		// 使用utf8.RuneCountInString来计算字符数量
 		charStart := utf8.RuneCountInString(textStr[:start])
 		charLen := utf8.RuneCountInString(queryStr)
 
 		// 生成字符位置索引
 		for i := charStart; i < charStart+charLen; i++ {
 			matches = append(matches, i)
+		}
+		return matches
+	}
+
+	// 情况2：目标文本包含在查询文本中
+	if strings.Contains(queryStr, textStr) {
+		// 生成字符位置索引（相对于目标文本）
+		charLen := utf8.RuneCountInString(textStr)
+		for i := 0; i < charLen; i++ {
+			matches = append(matches, i)
+		}
+		return matches
+	}
+
+	// 情况3：查找最长公共子串
+	commonSubstr := e.findLongestCommonSubstring(queryStr, textStr)
+	if len(commonSubstr) > 0 {
+		// 在目标文本中找到公共子串的位置
+		start := strings.Index(textStr, commonSubstr)
+		if start != -1 {
+			charStart := utf8.RuneCountInString(textStr[:start])
+			charLen := utf8.RuneCountInString(commonSubstr)
+
+			// 生成字符位置索引
+			for i := charStart; i < charStart+charLen; i++ {
+				matches = append(matches, i)
+			}
 		}
 	}
 
@@ -1192,7 +1295,7 @@ func (e *ExamService) calculateMatchesForOriginalText(originalText, query string
 	originalLower := strings.ToLower(normalizedOriginal)
 	queryLower := strings.ToLower(normalizedQuery)
 
-	// 简单的包含匹配
+	// 情况1：查询文本包含在目标文本中
 	if strings.Contains(originalLower, queryLower) {
 		start := strings.Index(originalLower, queryLower)
 
@@ -1203,6 +1306,31 @@ func (e *ExamService) calculateMatchesForOriginalText(originalText, query string
 		// 将标准化文本的位置映射回原始文本的位置
 		originalMatches := e.mapNormalizedPositionsToOriginal(originalText, normalizedOriginal, charStart, charLen)
 		matches = originalMatches
+		return matches
+	}
+
+	// 情况2：目标文本包含在查询文本中
+	if strings.Contains(queryLower, originalLower) {
+		// 目标文本完全匹配，返回所有位置
+		charLen := utf8.RuneCountInString(originalLower)
+		originalMatches := e.mapNormalizedPositionsToOriginal(originalText, normalizedOriginal, 0, charLen)
+		matches = originalMatches
+		return matches
+	}
+
+	// 情况3：查找最长公共子串
+	commonSubstr := e.findLongestCommonSubstring(originalLower, queryLower)
+	if len(commonSubstr) > 0 {
+		// 在目标文本中找到公共子串的位置
+		start := strings.Index(originalLower, commonSubstr)
+		if start != -1 {
+			charStart := utf8.RuneCountInString(originalLower[:start])
+			charLen := utf8.RuneCountInString(commonSubstr)
+
+			// 将标准化文本的位置映射回原始文本的位置
+			originalMatches := e.mapNormalizedPositionsToOriginal(originalText, normalizedOriginal, charStart, charLen)
+			matches = originalMatches
+		}
 	}
 
 	return matches
@@ -1282,6 +1410,41 @@ func (e *ExamService) NextQuestion(area ScreenshotArea, config OCRConfig) (strin
 	}
 
 	return ocrResult, nil
+}
+
+// findLongestCommonSubstring 查找两个字符串的最长公共子串
+func (e *ExamService) findLongestCommonSubstring(s1, s2 string) string {
+	if len(s1) == 0 || len(s2) == 0 {
+		return ""
+	}
+
+	// 使用动态规划算法查找最长公共子串
+	dp := make([][]int, len(s1)+1)
+	for i := range dp {
+		dp[i] = make([]int, len(s2)+1)
+	}
+
+	maxLen := 0
+	endPos := 0
+
+	for i := 1; i <= len(s1); i++ {
+		for j := 1; j <= len(s2); j++ {
+			if s1[i-1] == s2[j-1] {
+				dp[i][j] = dp[i-1][j-1] + 1
+				if dp[i][j] > maxLen {
+					maxLen = dp[i][j]
+					endPos = i - 1
+				}
+			}
+		}
+	}
+
+	if maxLen == 0 {
+		return ""
+	}
+
+	startPos := endPos - maxLen + 1
+	return s1[startPos : endPos+1]
 }
 
 // HideWindow 隐藏应用窗口

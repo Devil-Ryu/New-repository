@@ -25,6 +25,11 @@
         </div>
       </div>
       <div class="search-stats">
+        <div class="filter-tip">
+          <t-icon name="info-circle" />
+          <span>点击下方标签可过滤对应准确率的答案</span>
+        </div>
+      </div>
         <div class="accuracy-filters">
           <button 
             class="filter-button filter-high" 
@@ -48,7 +53,7 @@
             低准确率 (<50%): {{ filteredSearchResults.filter(r => r.score < 0.5).length }}个
           </button>
         </div>
-      </div>
+        
       <div class="answer-cards">
         <t-card
           v-for="(result, index) in filteredSearchResults"
@@ -479,7 +484,7 @@ defineExpose({
 .search-stats {
   display: flex;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 
@@ -537,6 +542,28 @@ defineExpose({
 .filter-button.filter-low.filter-active {
   border-color: #ff4d4f;
   color: #ff4d4f;
+}
+
+/* 筛选提示样式 */
+.filter-tip {
+  margin-top: 4px;
+  padding: 6px 12px;
+  background: rgba(24, 144, 255, 0.08);
+  border: 1px solid rgba(24, 144, 255, 0.15);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #1890ff;
+  width: 100%;
+  opacity: 0.8;
+}
+
+.filter-tip .t-icon {
+  font-size: 14px;
+  color: #1890ff;
 }
 
 /* 内联题目类型统计样式 */
