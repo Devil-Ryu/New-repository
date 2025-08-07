@@ -63,17 +63,18 @@
           <div class="card-content">
             <div class="card-main">
               <div class="card-text">
-                <p><strong>题目:</strong> <span v-html="highlightText(result.item.question, result.matches)"></span></p>
+                
+                <p><strong>题目:</strong> <span v-html="highlightText(result.item.question, result.questionMatches)"></span></p>
                 <div v-if="result.item.options.length > 0">
                   <p><strong>选项:</strong></p>
                   <ul>
-                    <li v-for="option in result.item.options" :key="option" v-html="highlightText(option, result.matches)"></li>
+                    <li v-for="option in result.item.options" :key="option" v-html="highlightText(option, result.optionMatches[option] || [])"></li>
                   </ul>
                 </div>
                 <p><strong>答案:</strong></p>
                 <div class="answer-list">
                   <div v-for="(ans, index) in result.item.answer" :key="index" class="answer-item">
-                    <span v-html="highlightText(ans, result.matches)"></span>
+                    <span>{{ ans }}</span>
                   </div>
                 </div>
                 <p><strong>匹配到文本:</strong> {{  result.matched || '未匹配到文本' }}</p>
@@ -269,6 +270,10 @@ const resetSearchState = () => {
   searchResults.value = []
   hasSearched.value = false
   selectedSearchTypeFilters.value = []
+  // 重置准确度筛选状态
+  accuracyFilters.high = true
+  accuracyFilters.medium = true
+  accuracyFilters.low = true
 }
 
 // 获取匹配度颜色
@@ -291,30 +296,25 @@ const getFilteredTypeStats = () => {
   })
   return stats
 }
-
 // 高亮匹配的文本
 const highlightText = (text, matches) => {
-  if (!text || !matches || matches.length === 0) {
+  if (!text || !matches || !Array.isArray(matches) || matches.length === 0) {
     return text
   }
 
-  let highlightedText = text
-
-  // 对每个匹配项进行高亮处理
-  matches.forEach(match => {
-    if (match && typeof match === 'string' && match.trim()) {
-      // 转义正则表达式特殊字符
-      const escapedMatch = match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      
-      // 创建正则表达式，不区分大小写，支持中文
-      const regex = new RegExp(`(${escapedMatch})`, 'gi')
-      
-      // 替换匹配的文本为高亮版本
-      highlightedText = highlightedText.replace(regex, '<span class="highlight-match">匹配到($1)</span>')
+  // 将文本转换为字符数组，支持中文
+  const chars = Array.from(text)
+  const highlightedChars = [...chars]
+  
+  // 对每个匹配位置进行高亮处理
+  matches.forEach(position => {
+    if (typeof position === 'number' && position >= 0 && position < chars.length) {
+      // 在指定位置添加高亮标记
+      highlightedChars[position] = `<span class="highlight-match">${chars[position]}</span>`
     }
   })
 
-  return highlightedText
+  return highlightedChars.join('')
 }
 
 // 更新答案数据
@@ -326,19 +326,33 @@ const updateAnswers = (newAnswers) => {
 // 更新搜索结果
 const updateSearchResults = (results) => {
   console.log('更新搜索结果:', results)
-  if (results && results.length > 0) {
+  
+  // 处理搜索结果
+  if (results === null) {
+    // 搜索框为空，显示所有答案
+    console.log('搜索框为空，显示所有答案')
+    hasSearched.value = false
+    searchResults.value = []
+  } else if (results && results.length > 0) {
+    // 有搜索结果
     console.log('第一个搜索结果:', results[0])
     console.log('第一个结果的matched字段:', results[0].matched)
+    hasSearched.value = true
+    searchResults.value = results
+  } else {
+    // 搜索结果为空
+    console.log('搜索结果为空')
+    hasSearched.value = true
+    searchResults.value = []
   }
-  searchResults.value = results
-  hasSearched.value = true
 }
 
 // 暴露方法给父组件
 defineExpose({
   updateAnswers,
   updateSearchResults,
-  resetSearchState
+  resetSearchState,
+  accuracyFilters
 })
 </script>
 
@@ -653,13 +667,22 @@ defineExpose({
 
 /* 高亮匹配文本样式 */
 .highlight-match {
-  background-color: #ffeb3b;
-  color: #333;
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  animation: highlight-pulse 0.3s ease-in-out;
+  background-color: rgba(255, 235, 59, 0.5) !important;
+  color: #333 !important;
+  padding: 1px 2px !important;
+  border-radius: 2px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 全局样式，确保v-html中的样式生效 */
+:deep(.highlight-match) {
+  background-color: rgba(255, 235, 59, 0.5) !important;
+  color: #333 !important;
+  padding: 1px 2px !important;
+  border-radius: 2px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
 }
 
 @keyframes highlight-pulse {

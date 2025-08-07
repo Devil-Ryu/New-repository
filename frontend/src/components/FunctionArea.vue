@@ -33,6 +33,14 @@ const props = defineProps({
   ocrConfig: {
     type: Object,
     required: true
+  },
+  accuracyFilters: {
+    type: Object,
+    default: () => ({
+      high: true,
+      medium: true,
+      low: true
+    })
   }
 })
 
@@ -86,17 +94,22 @@ const searchAnswers = async () => {
     console.log('搜索按钮被点击')
     console.log('OCR结果:', ocrResult.value)
     
-    // 如果搜索内容为空，返回所有结果
+    // 如果搜索内容为空，发送特殊信号表示显示所有答案
     if (!ocrResult.value.trim()) {
-      console.log('搜索内容为空，返回所有结果')
-      emit('search-results', [])
+      console.log('搜索内容为空，显示所有答案')
+      emit('search-results', null) // 使用null表示显示所有答案
       return
     }
     
     console.log('开始搜索:', ocrResult.value)
     
+    // 构建筛选条件
+    const filters = {
+      accuracyFilters: props.accuracyFilters
+    }
+    
     // 调用HTTP搜索接口
-    const results = await httpSearchAnswers(ocrResult.value, {})
+    const results = await httpSearchAnswers(ocrResult.value, filters)
     console.log('HTTP接口返回结果:', results)
     
     // 显示所有匹配结果，按匹配度排序

@@ -312,13 +312,29 @@ export class SearchResult {
              */
             this["matched"] = "";
         }
-        if (!("matches" in $$source)) {
+        if (!("questionMatches" in $$source)) {
             /**
-             * 匹配位置
+             * 题目匹配位置
              * @member
              * @type {number[]}
              */
-            this["matches"] = [];
+            this["questionMatches"] = [];
+        }
+        if (!("optionMatches" in $$source)) {
+            /**
+             * 选项匹配位置，key为选项文本
+             * @member
+             * @type {{ [_: string]: number[] }}
+             */
+            this["optionMatches"] = {};
+        }
+        if (!("answerMatches" in $$source)) {
+            /**
+             * 答案匹配位置（不使用）
+             * @member
+             * @type {number[]}
+             */
+            this["answerMatches"] = [];
         }
 
         Object.assign(this, $$source);
@@ -332,12 +348,20 @@ export class SearchResult {
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType1;
         const $$createField3_0 = $$createType2;
+        const $$createField4_0 = $$createType3;
+        const $$createField5_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("item" in $$parsedSource) {
             $$parsedSource["item"] = $$createField0_0($$parsedSource["item"]);
         }
-        if ("matches" in $$parsedSource) {
-            $$parsedSource["matches"] = $$createField3_0($$parsedSource["matches"]);
+        if ("questionMatches" in $$parsedSource) {
+            $$parsedSource["questionMatches"] = $$createField3_0($$parsedSource["questionMatches"]);
+        }
+        if ("optionMatches" in $$parsedSource) {
+            $$parsedSource["optionMatches"] = $$createField4_0($$parsedSource["optionMatches"]);
+        }
+        if ("answerMatches" in $$parsedSource) {
+            $$parsedSource["answerMatches"] = $$createField5_0($$parsedSource["answerMatches"]);
         }
         return new SearchResult(/** @type {Partial<SearchResult>} */($$parsedSource));
     }
@@ -347,3 +371,4 @@ export class SearchResult {
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = AnswerItem.createFrom;
 const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = $Create.Map($Create.Any, $$createType2);

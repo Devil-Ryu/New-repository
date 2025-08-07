@@ -28,6 +28,13 @@ const functionAreaRef = ref(null)
 const answerDisplayRef = ref(null)
 const errorDialogRef = ref(null)
 
+// 准确率筛选状态
+const accuracyFilters = reactive({
+  high: true,   // 高准确率 (≥80%)
+  medium: true, // 中准确率 (50%-79%)
+  low: true     // 低准确率 (<50%)
+})
+
 // 拖动调整宽度相关
 const isResizing = ref(false)
 const startX = ref(0)
@@ -302,6 +309,11 @@ const getOCRConfig = () => {
   return ocrConfigRef.value?.ocrConfig || {}
 }
 
+// 获取准确率筛选状态
+const getAccuracyFilters = () => {
+  return answerDisplayRef.value ? answerDisplayRef.value.accuracyFilters : accuracyFilters
+}
+
 // 初始化
 onMounted(() => {
   // 答案页面默认为空，用户需要导入数据
@@ -338,6 +350,7 @@ onMounted(() => {
             :screenshot-area="areaSelectorRef ? areaSelectorRef.screenshotArea : {}"
             :answers="currentAnswers"
             :ocr-config="getOCRConfig()"
+            :accuracy-filters="getAccuracyFilters()"
             @search-results="handleSearchResults"
             @search-error="handleSearchError"
             @update-screenshot="handleUpdateScreenshot"

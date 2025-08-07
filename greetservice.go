@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -80,10 +81,12 @@ func (e HeaderError) Error() string {
 
 // SearchResult 搜索结果
 type SearchResult struct {
-	Item    AnswerItem `json:"item"`
-	Score   float64    `json:"score"`   // 匹配度
-	Matched string     `json:"matched"` // 匹配的文本
-	Matches []int      `json:"matches"` // 匹配位置
+	Item            AnswerItem       `json:"item"`
+	Score           float64          `json:"score"`           // 匹配度
+	Matched         string           `json:"matched"`         // 匹配的文本
+	QuestionMatches []int            `json:"questionMatches"` // 题目匹配位置
+	OptionMatches   map[string][]int `json:"optionMatches"`   // 选项匹配位置，key为选项文本
+	AnswerMatches   []int            `json:"answerMatches"`   // 答案匹配位置（不使用）
 }
 
 // FileDialogResult 文件对话框结果
@@ -761,7 +764,6 @@ type AccuracyFilters struct {
 }
 
 func (e *ExamService) SearchAnswers(answers []AnswerItem, query string, filters AccuracyFilters) ([]SearchResult, error) {
-	log.Println("SearchAnswers", answers, query, filters)
 	results := []SearchResult{}
 
 	// 预处理查询文本，移除特殊字符
@@ -773,10 +775,12 @@ func (e *ExamService) SearchAnswers(answers []AnswerItem, query string, filters 
 		log.Println("查询为空，返回所有答案")
 		for _, answer := range answers {
 			results = append(results, SearchResult{
-				Item:    answer,
-				Score:   0.5, // 给予中等匹配度
-				Matched: "全部结果",
-				Matches: []int{},
+				Item:            answer,
+				Score:           0.5, // 给予中等匹配度
+				Matched:         "全部结果",
+				QuestionMatches: []int{},
+				OptionMatches:   make(map[string][]int),
+				AnswerMatches:   []int{},
 			})
 		}
 		return results, nil
@@ -799,15 +803,18 @@ func (e *ExamService) SearchAnswers(answers []AnswerItem, query string, filters 
 		score := 0.0
 		matched := ""
 		maxScore := 0.0
-		bestMatches := []int{}
+
+		// 分别存储各字段的匹配位置
+		questionMatches := []int{}
+		optionMatches := make(map[string][]int) // 为每个选项单独存储匹配位置
+		answerMatches := []int{}                // 答案不需要高亮，保持空数组
 
 		// 计算题目重合度（使用标准化后的文本进行匹配）
 		questionScore, _ := e.calculateOverlapScore(normalizedQuery, questionLower)
-		questionMatches := e.calculateMatchesForOriginalText(question, normalizedQuery)
+		questionMatches = e.calculateMatchesForOriginalText(question, normalizedQuery)
 		if questionScore > maxScore {
 			maxScore = questionScore
-			matched = "[题目匹配] " + normalizedQuery
-			bestMatches = questionMatches
+			matched = normalizedQuery
 		}
 
 		// 计算答案重合度
@@ -818,9 +825,10 @@ func (e *ExamService) SearchAnswers(answers []AnswerItem, query string, filters 
 			ansMatches := e.calculateMatchesForOriginalText(ans, normalizedQuery)
 			if ansScore > maxScore {
 				maxScore = ansScore
-				matched = "[答案匹配] " + normalizedQuery
-				bestMatches = ansMatches
+				matched = normalizedQuery
 			}
+			// 合并所有答案的匹配位置
+			answerMatches = append(answerMatches, ansMatches...)
 		}
 
 		// 计算选项重合度
@@ -828,13 +836,14 @@ func (e *ExamService) SearchAnswers(answers []AnswerItem, query string, filters 
 			normalizedOption := e.normalizeText(option)
 			optionLower := strings.ToLower(normalizedOption)
 			optionScore, _ := e.calculateOverlapScore(normalizedQuery, optionLower)
-			optionMatches := e.calculateMatchesForOriginalText(option, normalizedQuery)
+			optionMatchesForThis := e.calculateMatchesForOriginalText(option, normalizedQuery)
 			optionScore = optionScore * 0.8 // 选项权重稍低
 			if optionScore > maxScore {
 				maxScore = optionScore
 				matched = "选项匹配: " + normalizedQuery
-				bestMatches = optionMatches
 			}
+			// 为每个选项单独存储匹配位置
+			optionMatches[option] = optionMatchesForThis
 		}
 
 		score = maxScore
@@ -863,18 +872,17 @@ func (e *ExamService) SearchAnswers(answers []AnswerItem, query string, filters 
 				}
 			}
 
-			// 如果查询为空，显示所有结果
-			if normalizedQuery == "" {
-				shouldInclude = true
-			}
-
 			if shouldInclude {
-				log.Printf("搜索结果: 题目='%s', 分数=%.2f, 匹配位置=%v", answer.Question, score, bestMatches)
+				log.Printf("搜索结果: 题目='%s', 分数=%.2f, 题目匹配=%v, 选项匹配=%v, 答案匹配=%v",
+					answer.Question, score, questionMatches, optionMatches, answerMatches)
+				log.Printf("filters: %v", filters)
 				allPossibleMatches = append(allPossibleMatches, SearchResult{
-					Item:    answer,
-					Score:   score,
-					Matched: matched,
-					Matches: bestMatches,
+					Item:            answer,
+					Score:           score,
+					Matched:         matched,
+					QuestionMatches: questionMatches,
+					OptionMatches:   optionMatches,
+					AnswerMatches:   answerMatches,
 				})
 			}
 		}
@@ -896,17 +904,25 @@ func (e *ExamService) calculateOverlapScore(query, text string) (float64, []int)
 
 	// 完全匹配 - 100%匹配度
 	if query == text {
-		return 1.0, []int{0, len(query)}
+		// 生成所有字符位置的索引
+		matches := []int{}
+		for i := 0; i < utf8.RuneCountInString(query); i++ {
+			matches = append(matches, i)
+		}
+		return 1.0, matches
 	}
 
 	// 连续包含匹配 - 给予高匹配度
 	if strings.Contains(text, query) {
 		start := strings.Index(text, query)
-		queryLen := len(query)
+
+		// 将字节位置转换为字符位置
+		charStart := utf8.RuneCountInString(text[:start])
+		charLen := utf8.RuneCountInString(query)
 
 		// 生成匹配位置的字符索引
 		matches := []int{}
-		for i := start; i < start+queryLen; i++ {
+		for i := charStart; i < charStart+charLen; i++ {
 			matches = append(matches, i)
 		}
 
@@ -1070,13 +1086,21 @@ func (e *ExamService) calculateEditDistance(query, text []rune) int {
 func (e *ExamService) calculateSimpleMatches(query, text []rune) []int {
 	matches := []int{}
 
-	// 简单的包含匹配
+	// 将rune切片转换为字符串进行匹配
 	queryStr := string(query)
 	textStr := string(text)
 
 	if strings.Contains(textStr, queryStr) {
+		// 找到匹配的起始位置
 		start := strings.Index(textStr, queryStr)
-		for i := start; i < start+len(queryStr); i++ {
+
+		// 将字节位置转换为字符位置
+		// 使用utf8.RuneCountInString来计算字符数量
+		charStart := utf8.RuneCountInString(textStr[:start])
+		charLen := utf8.RuneCountInString(queryStr)
+
+		// 生成字符位置索引
+		for i := charStart; i < charStart+charLen; i++ {
 			matches = append(matches, i)
 		}
 	}
@@ -1171,12 +1195,75 @@ func (e *ExamService) calculateMatchesForOriginalText(originalText, query string
 	// 简单的包含匹配
 	if strings.Contains(originalLower, queryLower) {
 		start := strings.Index(originalLower, queryLower)
-		for i := start; i < start+len(queryLower); i++ {
-			matches = append(matches, i)
+
+		// 将字节位置转换为字符位置
+		charStart := utf8.RuneCountInString(originalLower[:start])
+		charLen := utf8.RuneCountInString(queryLower)
+
+		// 将标准化文本的位置映射回原始文本的位置
+		originalMatches := e.mapNormalizedPositionsToOriginal(originalText, normalizedOriginal, charStart, charLen)
+		matches = originalMatches
+	}
+
+	return matches
+}
+
+// mapNormalizedPositionsToOriginal 将标准化文本的位置映射回原始文本的位置
+func (e *ExamService) mapNormalizedPositionsToOriginal(originalText, normalizedText string, normalizedStart, normalizedLen int) []int {
+	matches := []int{}
+
+	// 将原始文本和标准化文本都转换为字符数组
+	originalChars := []rune(originalText)
+	normalizedChars := []rune(normalizedText)
+
+	// 创建标准化文本到原始文本的位置映射
+	normalizedToOriginal := make([]int, len(normalizedChars))
+
+	// 构建位置映射关系
+	normalizedPos := 0
+	for originalPos, char := range originalChars {
+		// 检查这个字符在标准化后是否保留
+		normalizedChar := e.normalizeChar(char)
+		if normalizedChar != 0 {
+			if normalizedPos < len(normalizedToOriginal) {
+				normalizedToOriginal[normalizedPos] = originalPos
+				normalizedPos++
+			}
+		}
+		// 如果字符被移除，跳过
+	}
+
+	// 将标准化文本的匹配位置映射回原始文本位置
+	for i := normalizedStart; i < normalizedStart+normalizedLen; i++ {
+		if i >= 0 && i < len(normalizedToOriginal) {
+			originalPos := normalizedToOriginal[i]
+			if originalPos >= 0 && originalPos < len(originalChars) {
+				matches = append(matches, originalPos)
+			}
 		}
 	}
 
 	return matches
+}
+
+// normalizeChar 标准化单个字符，返回标准化后的字符，如果字符被移除则返回0
+func (e *ExamService) normalizeChar(char rune) rune {
+	// 移除标点符号和特殊字符，与normalizeText函数保持一致
+	specialChars := map[rune]bool{
+		'(': true, ')': true, '[': true, ']': true, '{': true, '}': true,
+		'（': true, '）': true, '【': true, '】': true, '《': true, '》': true,
+		'"': true, '\'': true, '`': true, '~': true, '!': true, '@': true,
+		'#': true, '$': true, '%': true, '^': true, '&': true, '*': true,
+		'+': true, '=': true, '|': true, '\\': true, '/': true, '?': true,
+		'<': true, '>': true, ',': true, '.': true, ';': true, ':': true,
+		'、': true, '，': true, '。': true, '；': true, '：': true, '！': true,
+		'？': true, '…': true, '—': true, '－': true, '·': true, '　': true,
+	}
+
+	if specialChars[char] {
+		return 0 // 返回0表示字符被移除
+	}
+	return char
 }
 
 // NextQuestion 下一题功能
@@ -1252,8 +1339,12 @@ func (e *ExamService) GetGlobalAnswers() []AnswerItem {
 
 // SearchRequest HTTP搜索请求结构
 type SearchRequest struct {
-	Query   string          `json:"query"`
-	Filters AccuracyFilters `json:"filters"`
+	Query   string        `json:"query"`
+	Filters SearchFilters `json:"filters"`
+}
+
+type SearchFilters struct {
+	AccuracyFilters AccuracyFilters `json:"accuracyFilters"`
 }
 
 // SearchResponse HTTP搜索响应结构
@@ -1377,7 +1468,8 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	examService := &ExamService{}
 
 	// 使用全局答案数据进行搜索
-	results, err := examService.SearchAnswers(globalAnswers, req.Query, req.Filters)
+	log.Printf("req %v", req)
+	results, err := examService.SearchAnswers(globalAnswers, req.Query, req.Filters.AccuracyFilters)
 	if err != nil {
 		response := SearchResponse{
 			Success: false,
